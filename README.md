@@ -6,7 +6,7 @@ A self-contained web app for tracking recurring subscriptions. Runs as a single 
 
 - **Dashboard** — spending summary cards (monthly/yearly AUD), breakdown by tag, top 5 most expensive subscriptions
 - **Subscription list** — sortable table with real-time search and tag filtering
-- **Tags** — replace the single "Category" field from the spreadsheet; multiple tags per subscription, multi-select filtering
+- **Tags** — replace the single "Category" field from the spreadsheet; multiple tags per subscription, multi-select filtering; rename or delete tags globally via **Actions → Manage Tags**
 - **Currency conversion** — all costs shown in AUD regardless of original currency (USD→AUD via [Frankfurter](https://www.frankfurter.app/), cached for 6 hours)
 - **Active / Cancelled status** — explicit status field; cancelled subscriptions are hidden by default with a toggle to show them
 - **Add / Edit / Delete** — inline modal forms, no page reloads

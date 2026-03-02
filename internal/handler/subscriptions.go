@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -150,23 +149,6 @@ func (h *Handlers) RefreshCurrency(w http.ResponseWriter, r *http.Request) {
 	vm := h.buildDashboardVM()
 	w.Header().Set("HX-Trigger", `{"showToast":"Exchange rate refreshed"}`)
 	h.render(w, r, "dashboard_summary.html", vm)
-}
-
-// ListTags handles GET /tags — returns JSON list of all tags.
-func (h *Handlers) ListTags(w http.ResponseWriter, r *http.Request) {
-	tags := h.store.ListTags()
-	w.Header().Set("Content-Type", "application/json")
-	if tags == nil {
-		tags = []string{}
-	}
-	w.Write([]byte("["))
-	for i, t := range tags {
-		if i > 0 {
-			w.Write([]byte(","))
-		}
-		fmt.Fprintf(w, "%q", t)
-	}
-	w.Write([]byte("]"))
 }
 
 // parseSubscriptionForm parses and validates a subscription form POST.

@@ -104,7 +104,9 @@ func main() {
 	mux.HandleFunc("DELETE /subscriptions/{id}", h.DeleteSubscription)
 
 	// Tags
-	mux.HandleFunc("GET /tags", h.ListTags)
+	mux.HandleFunc("GET /tags", h.TagsModal)
+	mux.HandleFunc("PUT /tags/{tag}", h.RenameTag)
+	mux.HandleFunc("DELETE /tags/{tag}", h.DeleteTag)
 
 	// Currency
 	mux.HandleFunc("POST /currency/refresh", h.RefreshCurrency)

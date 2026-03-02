@@ -1,0 +1,63 @@
+{{define "tags_modal.html"}}
+<script>document.getElementById('modal-container').showModal();</script>
+<article>
+  <header>
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <h3 style="margin:0;">Manage Tags</h3>
+      <button type="button" aria-label="Close" style="background:none;border:none;cursor:pointer;font-size:1.1rem;color:var(--pico-muted-color);padding:0;"
+              onclick="document.getElementById('modal-container').close()">&#x2715;</button>
+    </div>
+  </header>
+
+  {{if .Tags}}
+  <table style="margin:0;">
+    <thead>
+      <tr>
+        <th>Tag</th>
+        <th style="width:4rem; text-align:right; color:var(--pico-muted-color);">Used by</th>
+        <th style="width:1%;"></th>
+      </tr>
+    </thead>
+    <tbody id="tags-list">
+      {{range .Tags}}
+      {{template "tag_row.html" .}}
+      {{end}}
+    </tbody>
+  </table>
+  {{else}}
+  <p style="color:var(--pico-muted-color);">No tags yet. Add tags when creating or editing subscriptions.</p>
+  {{end}}
+</article>
+{{end}}
+
+{{define "tag_row.html"}}
+<tr id="tag-row-{{urlenc .Tag}}">
+  <td>
+    <form hx-put="/tags/{{urlenc .Tag}}"
+          hx-target="#tag-row-{{urlenc .Tag}}"
+          hx-swap="outerHTML"
+          style="display:flex; gap:0.5rem; align-items:center; margin:0;">
+      <input type="text" name="name" value="{{.Tag}}"
+             style="margin:0; padding:0.3rem 0.5rem; font-size:0.9rem;">
+      {{if .Error}}
+      <span style="color:var(--pico-del-color); font-size:0.8rem; white-space:nowrap;">{{.Error}}</span>
+      {{end}}
+      <button type="submit" class="outline" style="margin:0; padding:0.3rem 0.7rem; font-size:0.85rem; white-space:nowrap;">
+        Rename
+      </button>
+    </form>
+  </td>
+  <td style="text-align:right; color:var(--pico-muted-color); font-size:0.85rem;">
+    {{.UsageCount}}
+  </td>
+  <td>
+    <button hx-delete="/tags/{{urlenc .Tag}}"
+            hx-target="#tag-row-{{urlenc .Tag}}"
+            hx-swap="outerHTML"
+            hx-confirm="Delete tag &ldquo;{{.Tag}}&rdquo;? It will be removed from all subscriptions."
+            class="outline secondary" style="margin:0; padding:0.3rem 0.7rem; font-size:0.85rem; white-space:nowrap;">
+      Delete
+    </button>
+  </td>
+</tr>
+{{end}}

@@ -188,6 +188,65 @@ func (s *JSONStore) upsertTagsLocked(tags []string) {
 	sort.Strings(s.cache.Tags)
 }
 
+// RenameTag renames a tag in the master list and in every subscription that uses it.
+func (s *JSONStore) RenameTag(oldName, newName string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	found := false
+	for i, t := range s.cache.Tags {
+		if t == oldName {
+			s.cache.Tags[i] = newName
+			found = true
+			break
+		}
+	}
+	if !found {
+		return fmt.Errorf("tag %q not found", oldName)
+	}
+	sort.Strings(s.cache.Tags)
+
+	for i := range s.cache.Subscriptions {
+		for j, t := range s.cache.Subscriptions[i].Tags {
+			if t == oldName {
+				s.cache.Subscriptions[i].Tags[j] = newName
+			}
+		}
+	}
+	return s.flush()
+}
+
+// DeleteTag removes a tag from the master list and from every subscription that uses it.
+func (s *JSONStore) DeleteTag(name string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	found := false
+	newMaster := s.cache.Tags[:0]
+	for _, t := range s.cache.Tags {
+		if t == name {
+			found = true
+		} else {
+			newMaster = append(newMaster, t)
+		}
+	}
+	if !found {
+		return fmt.Errorf("tag %q not found", name)
+	}
+	s.cache.Tags = newMaster
+
+	for i := range s.cache.Subscriptions {
+		var kept []string
+		for _, t := range s.cache.Subscriptions[i].Tags {
+			if t != name {
+				kept = append(kept, t)
+			}
+		}
+		s.cache.Subscriptions[i].Tags = kept
+	}
+	return s.flush()
+}
+
 // ReplaceAll replaces all subscriptions and rebuilds the tag list from scratch.
 // Used by the xlsx import with "replace all" option.
 func (s *JSONStore) ReplaceAll(subs []model.Subscription) error {

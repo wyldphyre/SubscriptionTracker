@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"net/url"
 	"sort"
 	"strings"
 	"time"
@@ -319,4 +320,5 @@ var FuncMap = template.FuncMap{
 		}
 		return t.Format("2006-01-02")
 	},
+	"urlenc": url.PathEscape,
 }
