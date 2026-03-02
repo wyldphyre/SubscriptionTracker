@@ -75,6 +75,11 @@ tr.row-cancelled td {
   opacity: 0;
 }
 
+/* Suppress Pico's non-functional CSS-only close icon; we use our own button */
+dialog article header::after {
+  display: none;
+}
+
 /* Modal dialog sizing */
 #modal-container {
   max-width: 600px;
@@ -101,17 +106,4 @@ article hgroup h2 {
 table th, table td {
   padding: 0.5rem 0.6rem;
   font-size: 0.9rem;
-}
-
-/* Close button in modal */
-button.close {
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-size: 1.1rem;
-  color: var(--pico-muted-color);
-  padding: 0;
-}
-button.close:hover {
-  color: var(--pico-color);
 }

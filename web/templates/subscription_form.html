@@ -10,8 +10,8 @@
   <header>
     <div style="display:flex; justify-content:space-between; align-items:center;">
       <h3 style="margin:0;">{{if $isNew}}Add subscription{{else}}Edit subscription{{end}}</h3>
-      <button class="close" aria-label="Close"
-              onclick="document.getElementById('modal-container').close()">✕</button>
+      <button type="button" aria-label="Close" style="background:none;border:none;cursor:pointer;font-size:1.1rem;color:var(--pico-muted-color);padding:0;"
+              onclick="document.getElementById('modal-container').close()">&#x2715;</button>
     </div>
   </header>
 
