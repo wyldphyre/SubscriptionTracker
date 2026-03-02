@@ -1,0 +1,115 @@
+{{define "dashboard_summary.html"}}
+<div id="dashboard-summary">
+  {{template "dashboard_summary_content" .}}
+</div>
+{{end}}
+
+{{define "dashboard_summary_content"}}
+<section>
+  <h2>Overview</h2>
+  <div class="grid">
+    <article>
+      <hgroup>
+        <p>Monthly spend</p>
+        <h2>{{formatAUD .TotalMonthlyAUD}}</h2>
+      </hgroup>
+      <footer><small>AUD / month</small></footer>
+    </article>
+    <article>
+      <hgroup>
+        <p>Yearly spend</p>
+        <h2>{{formatAUD .TotalYearlyAUD}}</h2>
+      </hgroup>
+      <footer><small>AUD / year</small></footer>
+    </article>
+    <article>
+      <hgroup>
+        <p>Active</p>
+        <h2>{{.ActiveCount}}</h2>
+      </hgroup>
+      <footer><small>subscriptions</small></footer>
+    </article>
+    <article>
+      <hgroup>
+        <p>Cancelled</p>
+        <h2>{{.CancelledCount}}</h2>
+      </hgroup>
+      <footer><small>subscriptions</small></footer>
+    </article>
+  </div>
+</section>
+
+<div class="grid">
+  <section>
+    <h3>Spending by tag</h3>
+    {{if .ByTag}}
+    <table>
+      <thead>
+        <tr>
+          <th>Tag</th>
+          <th>Subscriptions</th>
+          <th>Monthly (AUD)</th>
+          <th>Yearly (AUD)</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{range .ByTag}}
+        <tr>
+          <td><a href="/subscriptions?tag={{.Tag}}">{{.Tag}}</a></td>
+          <td>{{.Count}}</td>
+          <td>{{formatAUD .MonthlyAUD}}</td>
+          <td>{{formatAUD .YearlyAUD}}</td>
+        </tr>
+        {{end}}
+      </tbody>
+    </table>
+    {{else}}
+    <p><em>No active subscriptions yet.</em></p>
+    {{end}}
+  </section>
+
+  <section>
+    <h3>Top subscriptions by yearly cost</h3>
+    {{if .TopByYearlyCost}}
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Yearly (AUD)</th>
+          <th>Cycle</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{range .TopByYearlyCost}}
+        <tr>
+          <td>{{.Name}}</td>
+          <td>{{formatAUD .CostPerYear}}</td>
+          <td>{{cycleLabel .Cycle}}</td>
+        </tr>
+        {{end}}
+      </tbody>
+    </table>
+    {{else}}
+    <p><em>No active subscriptions yet.</em></p>
+    {{end}}
+  </section>
+</div>
+
+<section>
+  <footer>
+    <small>
+      USD→AUD rate: <strong>{{printf "%.4f" .Rate}}</strong>
+      {{if not .RateFetchedAt.IsZero}}
+        · fetched {{.RateFetchedAt.Format "2 Jan 2006 15:04"}}
+      {{end}}
+      &nbsp;
+      <button class="outline secondary" style="padding: 0.2rem 0.6rem; font-size: 0.8rem;"
+              hx-post="/currency/refresh"
+              hx-target="#dashboard-summary"
+              hx-swap="outerHTML">
+        Refresh rate
+      </button>
+    </small>
+  </footer>
+</section>
+{{end}}

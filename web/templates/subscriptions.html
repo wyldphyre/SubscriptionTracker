@@ -1,0 +1,96 @@
+{{define "subscriptions.html"}}
+{{template "layout_head" .}}
+
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+  <h2 style="margin:0;">Subscriptions</h2>
+  <button hx-get="/subscriptions/new"
+          hx-target="#modal-container"
+          hx-swap="innerHTML">
+    + Add subscription
+  </button>
+</div>
+
+<!-- Filter bar -->
+<form id="filter-form"
+      hx-get="/subscriptions/search"
+      hx-target="#subscription-tbody"
+      hx-swap="innerHTML"
+      hx-trigger="change from:#show-cancelled, submit"
+      style="display:flex; flex-wrap:wrap; gap:0.5rem; align-items:center; margin-bottom:0.75rem;">
+
+  <input type="search" name="q" placeholder="Search…" value="{{.Query}}"
+         hx-get="/subscriptions/search"
+         hx-trigger="input changed delay:300ms"
+         hx-target="#subscription-tbody"
+         hx-swap="innerHTML"
+         hx-include="#filter-form"
+         style="max-width:200px; margin:0;">
+
+  <label style="margin:0; display:flex; align-items:center; gap:0.3rem; font-size:0.9rem;">
+    <input type="checkbox" id="show-cancelled" name="cancelled" value="1" role="switch"
+           {{if .ShowCancelled}}checked{{end}}>
+    Show cancelled
+  </label>
+
+  <input type="hidden" name="tag" id="active-tag-input" value="{{joinTags .ActiveTags}}">
+</form>
+
+<!-- Tag chips -->
+{{if .AllTags}}
+<div id="tag-chips" style="margin-bottom:0.75rem; display:flex; flex-wrap:wrap; gap:0.4rem;">
+  {{range .AllTags}}
+  <button type="button"
+          class="tag-chip {{if contains $.ActiveTags .}}tag-chip-active{{end}}"
+          data-tag="{{.}}"
+          onclick="toggleTag(this)">
+    {{.}}
+  </button>
+  {{end}}
+</div>
+{{end}}
+
+<!-- Totals -->
+<p style="font-size:0.9rem; color:var(--pico-muted-color); margin-bottom:0.75rem;">
+  {{if .Subscriptions}}
+    Showing {{len .Subscriptions}} subscription{{if ne (len .Subscriptions) 1}}s{{end}}
+    &middot; <strong>{{formatAUD .TotalMonthly}}</strong>/mo
+    &middot; <strong>{{formatAUD .TotalYearly}}</strong>/yr
+  {{else}}
+    No subscriptions match your filters.
+  {{end}}
+</p>
+
+<!-- Table -->
+<div style="overflow-x:auto;">
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Cost</th>
+        <th>AUD/mo</th>
+        <th>AUD/yr</th>
+        <th>Cycle</th>
+        <th>Tags</th>
+        <th>Started</th>
+        <th>Status</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody id="subscription-tbody">
+      {{template "subscription_rows" .}}
+    </tbody>
+  </table>
+</div>
+
+<script>
+function toggleTag(btn) {
+  btn.classList.toggle('tag-chip-active');
+  var active = Array.from(document.querySelectorAll('.tag-chip-active'))
+                    .map(function(b) { return b.dataset.tag; });
+  document.getElementById('active-tag-input').value = active.join(',');
+  htmx.trigger(document.getElementById('filter-form'), 'submit');
+}
+</script>
+
+{{template "layout_foot" .}}
+{{end}}

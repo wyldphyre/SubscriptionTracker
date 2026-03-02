@@ -1,0 +1,11 @@
+services:
+  subscription-tracker:
+    image: subscription-tracker:latest
+    container_name: subscription-tracker
+    ports:
+      - "5011:8080"
+    environment:
+      DATA_FILE: /data/subscriptions.json
+    volumes:
+      - ./data:/data  # host folder (next to this file) mapped into the container
+    restart: unless-stopped

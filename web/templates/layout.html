@@ -1,0 +1,78 @@
+{{define "layout_head"}}<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Subscription Tracker</title>
+  <link rel="stylesheet" href="/static/pico.min.css">
+  <link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+  <nav class="container-fluid">
+    <ul>
+      <li><strong><a href="/" class="contrast">Subscription Tracker</a></strong></li>
+    </ul>
+    <ul>
+      <li><a href="/" {{if eq .ActivePage "dashboard"}}class="active-nav"{{end}}>Dashboard</a></li>
+      <li><a href="/subscriptions" {{if eq .ActivePage "subscriptions"}}class="active-nav"{{end}}>Subscriptions</a></li>
+      <li>
+        <details class="dropdown">
+          <summary role="button" class="outline secondary">Actions</summary>
+          <ul>
+            <li><a href="/export/csv">Export CSV</a></li>
+            <li><a href="/export/json">Export JSON</a></li>
+            <li><hr></li>
+            <li>
+              <a href="#"
+                 hx-get="/import"
+                 hx-target="#modal-container"
+                 hx-swap="innerHTML">
+                Import XLSX
+              </a>
+            </li>
+          </ul>
+        </details>
+      </li>
+      <li>
+        <button class="outline contrast" style="padding:0.3rem 0.7rem;font-size:0.85rem;"
+                onclick="toggleTheme()" title="Toggle dark mode">🌙</button>
+      </li>
+    </ul>
+  </nav>
+  <main class="container">
+{{end}}
+
+{{define "layout_foot"}}
+  </main>
+
+  <dialog id="modal-container"></dialog>
+  <div id="toast-container" aria-live="polite"></div>
+
+  <script src="/static/htmx.min.js"></script>
+  <script>
+    document.getElementById('modal-container').addEventListener('click', function(e) {
+      if (e.target === this) this.close();
+    });
+    document.body.addEventListener('showToast', function(evt) {
+      var msg = evt.detail.value || evt.detail;
+      var container = document.getElementById('toast-container');
+      var toast = document.createElement('div');
+      toast.className = 'toast';
+      toast.textContent = msg;
+      container.appendChild(toast);
+      setTimeout(function() { toast.classList.add('toast-fade'); }, 2800);
+      setTimeout(function() { container.removeChild(toast); }, 3200);
+    });
+    function toggleTheme() {
+      var html = document.documentElement;
+      html.dataset.theme = html.dataset.theme === 'dark' ? 'light' : 'dark';
+      localStorage.setItem('theme', html.dataset.theme);
+    }
+    (function() {
+      var saved = localStorage.getItem('theme');
+      if (saved) document.documentElement.dataset.theme = saved;
+    })();
+  </script>
+</body>
+</html>
+{{end}}

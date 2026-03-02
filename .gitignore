@@ -1,0 +1,24 @@
+# Compiled binary
+subtracker
+
+# Docker image tarballs (built by package.sh)
+subscription-tracker-*.tar.gz
+
+# Data files (personal subscription data — not for version control)
+subscriptions.json
+data/
+
+# macOS
+.DS_Store
+
+# Personal spreadsheet (source data, not part of the app)
+Subscriptions.xlsx
+
+# Go build cache
+*.test
+*.out
+
+# Editor / IDE
+.vscode/
+*.swp
+*.swo

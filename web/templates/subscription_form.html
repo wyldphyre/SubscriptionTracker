@@ -1,0 +1,107 @@
+{{define "subscription_form.html"}}
+{{template "layout_head" .}}
+{{template "subscription_form_fields" .}}
+{{template "layout_foot" .}}
+{{end}}
+
+{{define "subscription_form_fields"}}
+{{$isNew := eq .Sub.ID ""}}
+<article style="max-width:560px; margin:auto;">
+  <header>
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <h3 style="margin:0;">{{if $isNew}}Add subscription{{else}}Edit subscription{{end}}</h3>
+      <button class="close" aria-label="Close"
+              onclick="document.getElementById('modal-container').close()">✕</button>
+    </div>
+  </header>
+
+  {{if .Error}}
+  <div role="alert" style="color:var(--pico-del-color); margin-bottom:1rem;">{{.Error}}</div>
+  {{end}}
+
+  <form {{if $isNew}}
+          hx-post="/subscriptions"
+          hx-on::after-request="if(event.detail.successful){ document.getElementById('modal-container').close(); window.location='/subscriptions'; }"
+        {{else}}
+          hx-put="/subscriptions/{{.Sub.ID}}"
+          hx-target="#sub-{{.Sub.ID}}"
+          hx-swap="outerHTML"
+          hx-on::after-request="if(event.detail.successful) document.getElementById('modal-container').close()"
+        {{end}}>
+
+    <div class="grid">
+      <label>
+        Name <span style="color:var(--pico-del-color)">*</span>
+        <input type="text" name="name" value="{{.Sub.Name}}" required autofocus>
+      </label>
+      <label>
+        Description
+        <input type="text" name="description" value="{{.Sub.Description}}">
+      </label>
+    </div>
+
+    <div class="grid">
+      <label>
+        Cost
+        <input type="number" name="cost" value="{{if gt .Sub.Cost 0.0}}{{printf "%.2f" .Sub.Cost}}{{end}}"
+               step="0.01" min="0" placeholder="0.00">
+      </label>
+      <label>
+        Currency
+        <select name="currency">
+          {{range .AllCurrencies}}
+          <option value="{{.}}" {{if eq . $.Sub.Currency}}selected{{end}}>{{.}}</option>
+          {{end}}
+        </select>
+      </label>
+    </div>
+
+    <div class="grid">
+      <label>
+        Billing cycle
+        <select name="cycle">
+          {{range .AllCycles}}
+          <option value="{{.}}" {{if eq . $.Sub.Cycle}}selected{{end}}>{{cycleLabel .}}</option>
+          {{end}}
+        </select>
+      </label>
+      <label>
+        Start date
+        <input type="date" name="start_date" value="{{dateInput .Sub.StartDate}}">
+      </label>
+    </div>
+
+    <label>
+      Tags <small style="color:var(--pico-muted-color)">(comma-separated)</small>
+      <input type="text" name="tags" value="{{tagsField .Sub.Tags}}"
+             list="tag-suggestions" placeholder="e.g. productivity, streaming">
+      <datalist id="tag-suggestions">
+        {{range .AllTags}}<option value="{{.}}">{{end}}
+      </datalist>
+    </label>
+
+    <label>
+      Status
+      <select name="status">
+        <option value="active" {{if isActive .Sub.Status}}selected{{end}}>Active</option>
+        <option value="cancelled" {{if not (isActive .Sub.Status)}}selected{{end}}>Cancelled</option>
+      </select>
+    </label>
+
+    <label>
+      Notes
+      <textarea name="notes" rows="3" placeholder="Optional notes…">{{.Sub.Notes}}</textarea>
+    </label>
+
+    <div style="display:flex; justify-content:flex-end; gap:0.5rem; margin-top:1rem;">
+      <button type="button" class="secondary outline"
+              onclick="document.getElementById('modal-container').close()">
+        Cancel
+      </button>
+      <button type="submit">
+        {{if $isNew}}Add subscription{{else}}Save changes{{end}}
+      </button>
+    </div>
+  </form>
+</article>
+{{end}}

@@ -1,0 +1,68 @@
+{{define "subscription_row.html"}}
+  {{template "subscription_row_content" .}}
+{{end}}
+
+{{define "subscription_row_content"}}
+<tr id="sub-{{.ID}}" class="{{if not (isActive .Status)}}row-cancelled{{end}}">
+  <td>
+    <strong>{{.Name}}</strong>
+    {{if .Description}}<br><small style="color:var(--pico-muted-color)">{{.Description}}</small>{{end}}
+  </td>
+  <td>
+    {{if gt .Cost 0.0}}
+      {{printf "%.2f" .Cost}} {{.Currency}}
+    {{else}}
+      —
+    {{end}}
+  </td>
+  <td>{{if isActive .Status}}{{formatAUD .CostPerMonth}}{{else}}<span style="color:var(--pico-muted-color)">—</span>{{end}}</td>
+  <td>{{if isActive .Status}}{{formatAUD .CostPerYear}}{{else}}<span style="color:var(--pico-muted-color)">—</span>{{end}}</td>
+  <td>{{cycleLabel .Cycle}}</td>
+  <td>
+    {{range .Tags}}<span class="tag-badge">{{.}}</span> {{end}}
+  </td>
+  <td>{{.StartDisplay}}</td>
+  <td>
+    {{if isActive .Status}}
+      <span class="status-active">Active</span>
+    {{else}}
+      <span class="status-cancelled">Cancelled</span>
+    {{end}}
+  </td>
+  <td>
+    <div style="display:flex; gap:0.3rem; justify-content:flex-end;">
+      <button class="outline secondary" style="padding:0.2rem 0.5rem; font-size:0.8rem;"
+              hx-get="/subscriptions/{{.ID}}/edit"
+              hx-target="#modal-container"
+              hx-swap="innerHTML">
+        Edit
+      </button>
+      {{if isActive .Status}}
+      <button class="outline secondary" style="padding:0.2rem 0.5rem; font-size:0.8rem;"
+              hx-put="/subscriptions/{{.ID}}"
+              hx-vals='{"name":"{{.Name}}","description":"{{.Description}}","cost":"{{printf "%.2f" .Cost}}","currency":"{{.Currency}}","cycle":"{{.Cycle}}","tags":"{{tagsField .Tags}}","notes":"{{.Notes}}","start_date":"{{dateInput .StartDate}}","status":"cancelled"}'
+              hx-target="#sub-{{.ID}}"
+              hx-swap="outerHTML"
+              hx-confirm="Cancel this subscription?">
+        Cancel
+      </button>
+      {{else}}
+      <button class="outline" style="padding:0.2rem 0.5rem; font-size:0.8rem;"
+              hx-put="/subscriptions/{{.ID}}"
+              hx-vals='{"name":"{{.Name}}","description":"{{.Description}}","cost":"{{printf "%.2f" .Cost}}","currency":"{{.Currency}}","cycle":"{{.Cycle}}","tags":"{{tagsField .Tags}}","notes":"{{.Notes}}","start_date":"{{dateInput .StartDate}}","status":"active"}'
+              hx-target="#sub-{{.ID}}"
+              hx-swap="outerHTML">
+        Reactivate
+      </button>
+      {{end}}
+      <button class="outline contrast" style="padding:0.2rem 0.5rem; font-size:0.8rem;"
+              hx-delete="/subscriptions/{{.ID}}"
+              hx-target="#sub-{{.ID}}"
+              hx-swap="delete"
+              hx-confirm="Delete '{{.Name}}'? This cannot be undone.">
+        Del
+      </button>
+    </div>
+  </td>
+</tr>
+{{end}}

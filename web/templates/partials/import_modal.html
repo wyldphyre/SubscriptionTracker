@@ -1,0 +1,38 @@
+{{define "import_modal.html"}}
+<script>document.getElementById('modal-container').showModal();</script>
+<article style="max-width:480px; margin:auto;">
+  <header>
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <h3 style="margin:0;">Import from XLSX</h3>
+      <button class="close" aria-label="Close"
+              onclick="document.getElementById('modal-container').close()">✕</button>
+    </div>
+  </header>
+
+  <p>Import your subscriptions from an Excel file. The importer reads the same column structure as the original spreadsheet.</p>
+
+  <form action="/import/xlsx" method="POST" enctype="multipart/form-data">
+
+    <label>
+      Excel file (.xlsx)
+      <input type="file" name="xlsx_file" accept=".xlsx" required>
+    </label>
+
+    <label style="display:flex; align-items:center; gap:0.5rem;">
+      <input type="checkbox" name="replace_all" value="1" role="switch">
+      Replace all existing data
+    </label>
+    <small style="color:var(--pico-muted-color);">
+      If unchecked, imported subscriptions are added to your existing list.
+    </small>
+
+    <div style="display:flex; justify-content:flex-end; gap:0.5rem; margin-top:1rem;">
+      <button type="button" class="secondary outline"
+              onclick="document.getElementById('modal-container').close()">
+        Cancel
+      </button>
+      <button type="submit">Import</button>
+    </div>
+  </form>
+</article>
+{{end}}

@@ -1,0 +1,117 @@
+/* Navigation active state */
+nav a.active-nav {
+  font-weight: bold;
+  text-decoration: underline;
+}
+
+/* Tag chips in filter bar */
+.tag-chip {
+  padding: 0.2rem 0.6rem;
+  font-size: 0.8rem;
+  border-radius: 1rem;
+  border: 1px solid var(--pico-muted-border-color);
+  background: transparent !important;
+  cursor: pointer;
+  color: var(--pico-contrast) !important;
+  line-height: 1.4;
+}
+.tag-chip:hover {
+  border-color: var(--pico-primary);
+  color: var(--pico-primary) !important;
+}
+.tag-chip-active,
+.tag-chip-active:hover {
+  background: var(--pico-primary) !important;
+  border-color: var(--pico-primary);
+  color: var(--pico-primary-inverse) !important;
+}
+
+/* Tag badges in table rows */
+.tag-badge {
+  display: inline-block;
+  padding: 0.1rem 0.4rem;
+  font-size: 0.75rem;
+  border-radius: 0.8rem;
+  background: var(--pico-secondary-background);
+  color: var(--pico-secondary-inverse);
+  white-space: nowrap;
+}
+
+/* Cancelled row styling */
+tr.row-cancelled td {
+  opacity: 0.55;
+}
+
+/* Status badges */
+.status-active {
+  color: var(--pico-ins-color);
+  font-size: 0.85rem;
+}
+.status-cancelled {
+  color: var(--pico-del-color);
+  font-size: 0.85rem;
+}
+
+/* Toast notifications */
+#toast-container {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.toast {
+  background: var(--pico-contrast-background);
+  color: var(--pico-contrast-inverse);
+  padding: 0.6rem 1.2rem;
+  border-radius: 0.4rem;
+  font-size: 0.9rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  transition: opacity 0.4s ease;
+}
+.toast-fade {
+  opacity: 0;
+}
+
+/* Modal dialog sizing */
+#modal-container {
+  max-width: 600px;
+  width: 95vw;
+  border-radius: 0.5rem;
+  padding: 0;
+  border: none;
+}
+#modal-container::backdrop {
+  background: rgba(0,0,0,0.5);
+}
+
+/* Dashboard summary cards */
+article hgroup p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--pico-muted-color);
+}
+article hgroup h2 {
+  margin: 0.2rem 0 0;
+}
+
+/* Compact table */
+table th, table td {
+  padding: 0.5rem 0.6rem;
+  font-size: 0.9rem;
+}
+
+/* Close button in modal */
+button.close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1.1rem;
+  color: var(--pico-muted-color);
+  padding: 0;
+}
+button.close:hover {
+  color: var(--pico-color);
+}
