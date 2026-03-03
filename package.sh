@@ -2,14 +2,13 @@
 set -euo pipefail
 
 IMAGE_NAME="subscription-tracker"
-VERSION=$(date +%Y%m%d)
-OUTPUT="${IMAGE_NAME}-${VERSION}.tar.gz"
+OUTPUT="${IMAGE_NAME}.tar.gz"
 
 echo "==> Building Linux binary (amd64)..."
 CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o subtracker .
 
-echo "==> Building Docker image ${IMAGE_NAME}:${VERSION}..."
-docker build -t "${IMAGE_NAME}:${VERSION}" -t "${IMAGE_NAME}:latest" .
+echo "==> Building Docker image ${IMAGE_NAME}:latest..."
+docker build -t "${IMAGE_NAME}:latest" .
 
 echo "==> Removing Linux binary..."
 rm subtracker

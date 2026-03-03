@@ -85,9 +85,9 @@ go build -o subtracker .
 This will:
 1. Cross-compile the binary for Linux (amd64)
 2. Build a Docker image (`subscription-tracker:latest`)
-3. Save it to a `.tar.gz` file (e.g. `subscription-tracker-20260302.tar.gz`)
+3. Save it to `subscription-tracker.tar.gz`
 
-Transfer the `.tar.gz` file and `docker-compose.yml` to your Windows server (put them in the same folder).
+Transfer `subscription-tracker.tar.gz` and `docker-compose.yml` to your Windows server (put them in the same folder). Each new build overwrites the same file, so updates are just a file copy.
 
 ### 2. Configure port and data path
 
@@ -111,22 +111,15 @@ Data is stored in a `data/` folder alongside `docker-compose.yml` on the host, s
 
 ### 3. Deploy on Windows
 
-Copy the `.tar.gz` tarball into the same folder as `docker-compose.yml`, then run:
+Copy `subscription-tracker.tar.gz` into the same folder as `docker-compose.yml`, then run:
 
 ```powershell
 .\deploy.ps1
 ```
 
 The script will:
-1. Find the newest `subscription-tracker-*.tar.gz` in the current directory
-2. Load the Docker image
-3. Start (or recreate) the container via `docker-compose`
-
-To deploy a specific tarball:
-
-```powershell
-.\deploy.ps1 -ImageFile "subscription-tracker-20260302.tar.gz"
-```
+1. Load `subscription-tracker.tar.gz`
+2. Start (or recreate) the container via `docker-compose`
 
 Port and data path are configured in `docker-compose.yml`, not in `deploy.ps1`.
 

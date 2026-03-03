@@ -4,12 +4,12 @@
     Loads a Subscription Tracker Docker image and starts/updates the container via docker-compose.
 
 .PARAMETER ImageFile
-    Path to the .tar.gz image file. Defaults to the newest
-    subscription-tracker-*.tar.gz in the current directory.
+    Path to the .tar.gz image file. Defaults to subscription-tracker.tar.gz
+    in the same directory as this script.
 
 .EXAMPLE
     .\deploy.ps1
-    .\deploy.ps1 -ImageFile "subscription-tracker-20260302.tar.gz"
+    .\deploy.ps1 -ImageFile "subscription-tracker.tar.gz"
 #>
 param(
     [string]$ImageFile = ""
@@ -20,20 +20,13 @@ $ErrorActionPreference = "Stop"
 
 # -- Resolve image tarball ---------------------------------------------------
 if ($ImageFile -eq "") {
-    $tarballs = @(Get-ChildItem -Filter "subscription-tracker-*.tar.gz" -ErrorAction SilentlyContinue |
-                  Sort-Object LastWriteTime -Descending)
-    if ($tarballs.Count -eq 0) {
-        Write-Error "No subscription-tracker-*.tar.gz found in the current directory. Specify -ImageFile."
-        exit 1
-    }
-    $ImageFile = $tarballs[0].FullName
-    Write-Host "Using image file: $ImageFile"
-} else {
-    if (-not (Test-Path $ImageFile)) {
-        Write-Error "Image file not found: $ImageFile"
-        exit 1
-    }
+    $ImageFile = Join-Path $PSScriptRoot "subscription-tracker.tar.gz"
 }
+if (-not (Test-Path $ImageFile)) {
+    Write-Error "Image file not found: $ImageFile"
+    exit 1
+}
+Write-Host "Using image file: $ImageFile"
 
 # -- Load Docker image -------------------------------------------------------
 Write-Host "==> Loading Docker image from $([System.IO.Path]::GetFileName($ImageFile))..."

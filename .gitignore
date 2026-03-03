@@ -1,8 +1,8 @@
 # Compiled binary
 subtracker
 
-# Docker image tarballs (built by package.sh)
-subscription-tracker-*.tar.gz
+# Docker image tarball (built by package.sh)
+subscription-tracker.tar.gz
 
 # Data files (personal subscription data — not for version control)
 subscriptions.json
