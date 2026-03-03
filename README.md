@@ -131,6 +131,41 @@ To deploy a specific tarball:
 Port and data path are configured in `docker-compose.yml`, not in `deploy.ps1`.
 
 
+## Backing up your data
+
+`backup.ps1` creates compressed backups of `subscriptions.json` with automatic daily/weekly/monthly rotation. Run it from the same folder as `docker-compose.yml`.
+
+```powershell
+.\backup.ps1
+```
+
+By default, backups are written to a `backups\` folder next to the script:
+
+```
+backups\
+  daily\    subscription-tracker-2026-03-03_120000.zip   # kept for 7 days
+  weekly\   subscription-tracker-2026-03-02_120000.zip   # kept for 4 weeks (Sundays)
+  monthly\  subscription-tracker-2026-03-01_120000.zip   # kept for 12 months (1st of month)
+```
+
+To send backups to a different location (e.g. a NAS):
+
+```powershell
+.\backup.ps1 -BackupDir "Z:\Backups\SubscriptionTracker"
+.\backup.ps1 -BackupDir "\\nas\backups\subscriptiontracker" -DailyKeep 14
+```
+
+| Parameter | Default | Description |
+|---|---|---|
+| `-BackupDir` | `.\backups` | Destination for backup archives |
+| `-DataDir` | `.\data` | Folder containing `subscriptions.json` |
+| `-DailyKeep` | `7` | Number of daily backups to retain |
+| `-WeeklyKeep` | `4` | Number of weekly backups to retain |
+| `-MonthlyKeep` | `12` | Number of monthly backups to retain |
+
+To run automatically, add a Windows Task Scheduler entry pointing to `backup.ps1`.
+
+
 ## Project structure
 
 ```
@@ -140,6 +175,7 @@ SubscriptionTracker/
 ├── docker-compose.yml          # Container config: port, data path, restart policy
 ├── package.sh                  # Mac: build + package to Docker .tar.gz
 ├── deploy.ps1                  # Windows: load image + docker-compose up
+├── backup.ps1                  # Windows: backup subscriptions.json with rotation
 ├── internal/
 │   ├── model/subscription.go   # Core types and cost calculation methods
 │   ├── store/json_store.go     # Atomic JSON file persistence
