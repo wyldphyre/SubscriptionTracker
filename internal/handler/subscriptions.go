@@ -12,7 +12,7 @@ import (
 func (h *Handlers) NewForm(w http.ResponseWriter, r *http.Request) {
 	vm := FormViewModel{
 		ActivePage:    "subscriptions",
-		Sub:           &model.Subscription{},
+		Sub:           &model.Subscription{Status: model.StatusActive},
 		AllTags:       h.store.ListTags(),
 		AllCycles:     model.AllCycles,
 		AllCurrencies: model.AllCurrencies,
