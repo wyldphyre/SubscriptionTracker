@@ -8,21 +8,21 @@
     <strong>{{.Name}}</strong>
     {{if .Description}}<br><small style="color:var(--pico-muted-color)">{{.Description}}</small>{{end}}
   </td>
-  <td>
+  <td data-label="Cost">
     {{if gt .Cost 0.0}}
       {{printf "%.2f" .Cost}} {{.Currency}}
     {{else}}
       —
     {{end}}
   </td>
-  <td>{{if isActive .Status}}{{formatAUD .CostPerMonth}}{{else}}<span style="color:var(--pico-muted-color)">—</span>{{end}}</td>
-  <td>{{if isActive .Status}}{{formatAUD .CostPerYear}}{{else}}<span style="color:var(--pico-muted-color)">—</span>{{end}}</td>
-  <td>{{cycleLabel .Cycle}}</td>
-  <td>
+  <td data-label="Monthly">{{if isActive .Status}}{{formatAUD .CostPerMonth}}{{else}}<span style="color:var(--pico-muted-color)">—</span>{{end}}</td>
+  <td data-label="Yearly" class="col-hide-mobile">{{if isActive .Status}}{{formatAUD .CostPerYear}}{{else}}<span style="color:var(--pico-muted-color)">—</span>{{end}}</td>
+  <td data-label="Cycle" class="col-hide-mobile">{{cycleLabel .Cycle}}</td>
+  <td data-label="Tags">
     {{range .Tags}}<span class="tag-badge">{{.}}</span> {{end}}
   </td>
-  <td>{{.StartDisplay}}</td>
-  <td>
+  <td data-label="Started" class="col-hide-mobile">{{.StartDisplay}}</td>
+  <td data-label="Status">
     {{if isActive .Status}}
       <span class="status-active">Active</span>
     {{else}}
