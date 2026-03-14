@@ -58,6 +58,7 @@ type SubscriptionViewModel struct {
 	CostPerMonth float64
 	CostPerYear  float64
 	StartDisplay string
+	PctOfYearly  float64 // percentage of the current view's total yearly spend; 0 = not computed
 }
 
 func toViewModel(sub model.Subscription, rate float64) SubscriptionViewModel {
@@ -75,10 +76,11 @@ func toViewModel(sub model.Subscription, rate float64) SubscriptionViewModel {
 
 // TagSummary holds per-tag spending totals.
 type TagSummary struct {
-	Tag        string
-	Count      int
-	MonthlyAUD float64
-	YearlyAUD  float64
+	Tag         string
+	Count       int
+	MonthlyAUD  float64
+	YearlyAUD   float64
+	PctOfYearly float64
 }
 
 // DashboardViewModel is passed to the dashboard template.
@@ -156,28 +158,34 @@ func (h *Handlers) buildDashboardVM() DashboardViewModel {
 		}
 	}
 
-	// Build sorted tag summaries
+	// Build sorted tag summaries with percentages
 	byTag := make([]TagSummary, 0, len(tagMap))
 	for _, ts := range tagMap {
+		if totalYearly > 0 {
+			ts.PctOfYearly = ts.YearlyAUD / totalYearly * 100
+		}
 		byTag = append(byTag, *ts)
 	}
 	sort.Slice(byTag, func(i, j int) bool {
 		return byTag[i].MonthlyAUD > byTag[j].MonthlyAUD
 	})
 
-	// Top 5 active by yearly cost
+	// Top 10 active by yearly cost with percentages
 	activeVMs := make([]SubscriptionViewModel, 0)
 	for _, vm := range vms {
 		if vm.Status == model.StatusActive {
+			if totalYearly > 0 {
+				vm.PctOfYearly = vm.CostPerYear / totalYearly * 100
+			}
 			activeVMs = append(activeVMs, vm)
 		}
 	}
 	sort.Slice(activeVMs, func(i, j int) bool {
 		return activeVMs[i].CostPerYear > activeVMs[j].CostPerYear
 	})
-	top5 := activeVMs
-	if len(top5) > 5 {
-		top5 = top5[:5]
+	top10 := activeVMs
+	if len(top10) > 10 {
+		top10 = top10[:10]
 	}
 
 	return DashboardViewModel{
@@ -187,7 +195,7 @@ func (h *Handlers) buildDashboardVM() DashboardViewModel {
 		ActiveCount:     activeCount,
 		CancelledCount:  cancelledCount,
 		ByTag:           byTag,
-		TopByYearlyCost: top5,
+		TopByYearlyCost: top10,
 		Rate:            rate,
 		RateFetchedAt:   fetchedAt,
 		AllTags:         allTags,
@@ -250,6 +258,13 @@ func (h *Handlers) buildListVM(activeTags []string, showCancelled bool, query st
 	sort.Slice(filtered, func(i, j int) bool {
 		return strings.ToLower(filtered[i].Name) < strings.ToLower(filtered[j].Name)
 	})
+
+	// Set percentage of yearly total for each row
+	if totalYearly > 0 {
+		for i := range filtered {
+			filtered[i].PctOfYearly = filtered[i].CostPerYear / totalYearly * 100
+		}
+	}
 
 	return ListViewModel{
 		ActivePage:    "subscriptions",

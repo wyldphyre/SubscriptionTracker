@@ -16,6 +16,8 @@ import (
 	"github.com/craigr/subscriptiontracker/internal/store"
 )
 
+const version = "1.0"
+
 //go:embed web/static
 var staticFiles embed.FS
 
@@ -65,6 +67,7 @@ func main() {
 	// Parse all templates from embedded FS
 	tmpl, err := template.New("").
 		Funcs(handler.FuncMap).
+		Funcs(template.FuncMap{"appVersion": func() string { return version }}).
 		ParseFS(templateFiles,
 			"web/templates/layout.html",
 			"web/templates/dashboard.html",

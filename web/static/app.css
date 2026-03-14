@@ -108,6 +108,14 @@ table th, table td {
   font-size: 0.9rem;
 }
 
+/* Sticky header on subscriptions table */
+.subs-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--pico-background-color);
+}
+
 /* Dashboard table wrapper — horizontal scroll on all screen sizes */
 .dashboard-table-wrap {
   overflow-x: auto;

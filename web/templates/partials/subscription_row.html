@@ -16,6 +16,7 @@
     {{end}}
   </td>
   <td data-label="Monthly">{{if isActive .Status}}{{formatAUD .CostPerMonth}}{{else}}<span style="color:var(--pico-muted-color)">—</span>{{end}}</td>
+  <td data-label="% share">{{if gt .PctOfYearly 0.0}}{{printf "%.1f%%" .PctOfYearly}}{{else}}<span style="color:var(--pico-muted-color)">—</span>{{end}}</td>
   <td data-label="Yearly" class="col-hide-mobile">{{if isActive .Status}}{{formatAUD .CostPerYear}}{{else}}<span style="color:var(--pico-muted-color)">—</span>{{end}}</td>
   <td data-label="Cycle" class="col-hide-mobile">{{cycleLabel .Cycle}}</td>
   <td data-label="Tags">

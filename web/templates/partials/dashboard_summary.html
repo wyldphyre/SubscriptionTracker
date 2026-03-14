@@ -51,6 +51,7 @@
           <th>Subscriptions</th>
           <th>Monthly (AUD)</th>
           <th>Yearly (AUD)</th>
+          <th>% of total</th>
         </tr>
       </thead>
       <tbody>
@@ -60,6 +61,7 @@
           <td>{{.Count}}</td>
           <td>{{formatAUD .MonthlyAUD}}</td>
           <td>{{formatAUD .YearlyAUD}}</td>
+          <td>{{printf "%.1f%%" .PctOfYearly}}</td>
         </tr>
         {{end}}
       </tbody>
@@ -71,7 +73,7 @@
   </section>
 
   <section>
-    <h3>Top subscriptions by yearly cost</h3>
+    <h3>Top 10 subscriptions by yearly cost</h3>
     {{if .TopByYearlyCost}}
     <div class="dashboard-table-wrap">
     <table>
@@ -79,6 +81,7 @@
         <tr>
           <th>Name</th>
           <th>Yearly (AUD)</th>
+          <th>% of total</th>
           <th>Cycle</th>
         </tr>
       </thead>
@@ -87,6 +90,7 @@
         <tr>
           <td>{{.Name}}</td>
           <td>{{formatAUD .CostPerYear}}</td>
+          <td>{{printf "%.1f%%" .PctOfYearly}}</td>
           <td>{{cycleLabel .Cycle}}</td>
         </tr>
         {{end}}
