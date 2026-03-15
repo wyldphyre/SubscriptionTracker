@@ -16,7 +16,7 @@ import (
 	"github.com/craigr/subscriptiontracker/internal/store"
 )
 
-const version = "1.0"
+const version = "1.1"
 
 //go:embed web/static
 var staticFiles embed.FS
