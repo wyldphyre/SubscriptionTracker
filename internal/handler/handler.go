@@ -61,12 +61,12 @@ type SubscriptionViewModel struct {
 	PctOfYearly  float64 // percentage of the current view's total yearly spend; 0 = not computed
 }
 
-func toViewModel(sub model.Subscription, rate float64) SubscriptionViewModel {
+func toViewModel(sub model.Subscription, usdToAUD, eurToAUD float64) SubscriptionViewModel {
 	vm := SubscriptionViewModel{
 		Subscription: sub,
-		CostAUD:      sub.CostAUD(rate),
-		CostPerMonth: sub.CostPerMonthAUD(rate),
-		CostPerYear:  sub.CostPerYearAUD(rate),
+		CostAUD:      sub.CostAUD(usdToAUD, eurToAUD),
+		CostPerMonth: sub.CostPerMonthAUD(usdToAUD, eurToAUD),
+		CostPerYear:  sub.CostPerYearAUD(usdToAUD, eurToAUD),
 	}
 	if !sub.StartDate.IsZero() {
 		vm.StartDisplay = sub.StartDate.Format("Jan 2006")
@@ -93,6 +93,7 @@ type DashboardViewModel struct {
 	ByTag           []TagSummary
 	TopByYearlyCost []SubscriptionViewModel
 	Rate            float64
+	EURRate         float64
 	RateFetchedAt   time.Time
 	AllTags         []string
 	Subscriptions   []SubscriptionViewModel
@@ -124,8 +125,7 @@ type FormViewModel struct {
 
 // buildDashboardVM builds the DashboardViewModel from store data.
 func (h *Handlers) buildDashboardVM() DashboardViewModel {
-	rate := h.converter.USDToAUD()
-	_, fetchedAt := h.converter.RateInfo()
+	rates := h.converter.GetRates()
 
 	subs := h.store.GetAll()
 	allTags := h.store.ListTags()
@@ -136,7 +136,7 @@ func (h *Handlers) buildDashboardVM() DashboardViewModel {
 
 	vms := make([]SubscriptionViewModel, 0, len(subs))
 	for _, sub := range subs {
-		vm := toViewModel(sub, rate)
+		vm := toViewModel(sub, rates.USDToAUD, rates.EURToAUD)
 		vms = append(vms, vm)
 
 		if sub.Status == model.StatusCancelled {
@@ -196,8 +196,9 @@ func (h *Handlers) buildDashboardVM() DashboardViewModel {
 		CancelledCount:  cancelledCount,
 		ByTag:           byTag,
 		TopByYearlyCost: top10,
-		Rate:            rate,
-		RateFetchedAt:   fetchedAt,
+		Rate:            rates.USDToAUD,
+		EURRate:         rates.EURToAUD,
+		RateFetchedAt:   rates.FetchedAt,
 		AllTags:         allTags,
 		Subscriptions:   vms,
 	}
@@ -205,7 +206,7 @@ func (h *Handlers) buildDashboardVM() DashboardViewModel {
 
 // buildListVM builds the ListViewModel, applying optional filters.
 func (h *Handlers) buildListVM(activeTags []string, showCancelled bool, query string) ListViewModel {
-	rate := h.converter.USDToAUD()
+	rates := h.converter.GetRates()
 	subs := h.store.GetAll()
 	allTags := h.store.ListTags()
 
@@ -246,7 +247,7 @@ func (h *Handlers) buildListVM(activeTags []string, showCancelled bool, query st
 			}
 		}
 
-		vm := toViewModel(sub, rate)
+		vm := toViewModel(sub, rates.USDToAUD, rates.EURToAUD)
 		filtered = append(filtered, vm)
 		if sub.Status == model.StatusActive {
 			totalMonthly += vm.CostPerMonth

@@ -22,6 +22,7 @@ type Currency string
 const (
 	CurrencyAUD Currency = "AUD"
 	CurrencyUSD Currency = "USD"
+	CurrencyEUR Currency = "EUR"
 )
 
 // AllCycles is the ordered list of valid billing cycles for UI display.
@@ -42,7 +43,7 @@ func (c BillingCycle) Label() string {
 }
 
 // AllCurrencies is the ordered list of valid currencies for UI display.
-var AllCurrencies = []Currency{CurrencyAUD, CurrencyUSD}
+var AllCurrencies = []Currency{CurrencyAUD, CurrencyUSD, CurrencyEUR}
 
 type Subscription struct {
 	ID          string       `json:"id"`
@@ -59,21 +60,27 @@ type Subscription struct {
 	UpdatedAt   time.Time    `json:"updated_at"`
 }
 
-// CostAUD returns cost converted to AUD using the provided USD→AUD rate.
+// CostAUD returns cost converted to AUD using the provided exchange rates.
 // If the subscription is cancelled, returns 0.
-func (s *Subscription) CostAUD(usdToAUD float64) float64 {
+func (s *Subscription) CostAUD(usdToAUD, eurToAUD float64) float64 {
 	if s.Status == StatusCancelled {
 		return 0
 	}
-	if s.Currency == CurrencyAUD {
+	switch s.Currency {
+	case CurrencyAUD:
+		return s.Cost
+	case CurrencyUSD:
+		return s.Cost * usdToAUD
+	case CurrencyEUR:
+		return s.Cost * eurToAUD
+	default:
 		return s.Cost
 	}
-	return s.Cost * usdToAUD
 }
 
 // CostPerMonthAUD returns the monthly equivalent cost in AUD.
-func (s *Subscription) CostPerMonthAUD(usdToAUD float64) float64 {
-	base := s.CostAUD(usdToAUD)
+func (s *Subscription) CostPerMonthAUD(usdToAUD, eurToAUD float64) float64 {
+	base := s.CostAUD(usdToAUD, eurToAUD)
 	switch s.Cycle {
 	case CycleMonthly:
 		return base
@@ -87,8 +94,8 @@ func (s *Subscription) CostPerMonthAUD(usdToAUD float64) float64 {
 }
 
 // CostPerYearAUD returns the annual equivalent cost in AUD.
-func (s *Subscription) CostPerYearAUD(usdToAUD float64) float64 {
-	return s.CostPerMonthAUD(usdToAUD) * 12
+func (s *Subscription) CostPerYearAUD(usdToAUD, eurToAUD float64) float64 {
+	return s.CostPerMonthAUD(usdToAUD, eurToAUD) * 12
 }
 
 // Store is the top-level JSON file structure.

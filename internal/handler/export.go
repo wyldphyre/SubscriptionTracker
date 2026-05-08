@@ -12,7 +12,7 @@ import (
 // ExportCSV handles GET /export/csv
 func (h *Handlers) ExportCSV(w http.ResponseWriter, r *http.Request) {
 	subs := h.store.GetAll()
-	rate := h.converter.USDToAUD()
+	rates := h.converter.GetRates()
 
 	filename := fmt.Sprintf("subscriptions-%s.csv", time.Now().Format("2006-01-02"))
 	w.Header().Set("Content-Type", "text/csv")
@@ -31,7 +31,7 @@ func (h *Handlers) ExportCSV(w http.ResponseWriter, r *http.Request) {
 		if !sub.StartDate.IsZero() {
 			startStr = sub.StartDate.Format("2006-01-02")
 		}
-		vm := toViewModel(sub, rate)
+		vm := toViewModel(sub, rates.USDToAUD, rates.EURToAUD)
 		_ = cw.Write([]string{
 			sub.ID,
 			sub.Name,

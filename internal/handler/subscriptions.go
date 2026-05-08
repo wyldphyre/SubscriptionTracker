@@ -54,8 +54,8 @@ func (h *Handlers) GetSubscription(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	rate := h.converter.USDToAUD()
-	vm := toViewModel(*sub, rate)
+	rates := h.converter.GetRates()
+	vm := toViewModel(*sub, rates.USDToAUD, rates.EURToAUD)
 	h.render(w, r, "subscription_row.html", vm)
 }
 
@@ -123,8 +123,8 @@ func (h *Handlers) UpdateSubscription(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rate := h.converter.USDToAUD()
-	vm := toViewModel(*sub, rate)
+	rates := h.converter.GetRates()
+	vm := toViewModel(*sub, rates.USDToAUD, rates.EURToAUD)
 	w.Header().Set("HX-Trigger", `{"showToast":"Subscription updated"}`)
 	h.render(w, r, "subscription_row.html", vm)
 }

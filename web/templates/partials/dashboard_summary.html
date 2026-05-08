@@ -106,7 +106,9 @@
 <section>
   <footer>
     <small>
-      USD→AUD rate: <strong>{{printf "%.4f" .Rate}}</strong>
+      USD→AUD: <strong>{{printf "%.4f" .Rate}}</strong>
+      &nbsp;·&nbsp;
+      EUR→AUD: <strong>{{printf "%.4f" .EURRate}}</strong>
       {{if not .RateFetchedAt.IsZero}}
         · fetched {{.RateFetchedAt.Format "2 Jan 2006 15:04"}}
       {{end}}

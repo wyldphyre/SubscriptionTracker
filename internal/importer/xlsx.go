@@ -87,8 +87,11 @@ func ImportXLSX(path string) (*Result, error) {
 			currencyStr = strings.ToUpper(get(row, "Cost Currency"))
 		}
 		currency := model.CurrencyAUD
-		if currencyStr == "USD" {
+		switch currencyStr {
+		case "USD":
 			currency = model.CurrencyUSD
+		case "EUR":
+			currency = model.CurrencyEUR
 		}
 
 		// Cycle

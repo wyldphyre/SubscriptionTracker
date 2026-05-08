@@ -10,15 +10,22 @@ import (
 )
 
 const (
-	frankfurterURL = "https://api.frankfurter.app/latest?from=USD&to=AUD"
-	fallbackRate   = 1.60 // used only when no cached rate exists and fetch fails
+	frankfurterURL  = "https://api.frankfurter.app/latest?from=USD&to=AUD,EUR"
+	fallbackUSDRate = 1.60 // used only when no cached rate exists and fetch fails
+	fallbackEURRate = 1.75
 )
 
-// Converter fetches and caches the USD→AUD exchange rate.
+// Rates holds the current exchange rates used for currency conversion.
+type Rates struct {
+	USDToAUD  float64
+	EURToAUD  float64
+	FetchedAt time.Time
+}
+
+// Converter fetches and caches exchange rates.
 type Converter struct {
 	mu         sync.RWMutex
-	rate       float64
-	fetchedAt  time.Time
+	rates      Rates
 	ttl        time.Duration
 	httpClient *http.Client
 }
@@ -29,7 +36,7 @@ type frankfurterResponse struct {
 	Rates map[string]float64 `json:"rates"`
 }
 
-// New creates a Converter with the given TTL for the cached rate.
+// New creates a Converter with the given TTL for the cached rates.
 func New(ttl time.Duration) *Converter {
 	return &Converter{
 		ttl: ttl,
@@ -39,78 +46,94 @@ func New(ttl time.Duration) *Converter {
 	}
 }
 
-// USDToAUD returns the current USD→AUD exchange rate.
-// Uses cached value if within TTL; fetches from Frankfurter API otherwise.
-func (c *Converter) USDToAUD() float64 {
+// GetRates returns the current exchange rates.
+// Uses cached values if within TTL; fetches from Frankfurter API otherwise.
+func (c *Converter) GetRates() Rates {
 	c.mu.RLock()
-	if c.rate != 0 && time.Since(c.fetchedAt) < c.ttl {
-		rate := c.rate
+	if c.rates.USDToAUD != 0 && time.Since(c.rates.FetchedAt) < c.ttl {
+		rates := c.rates
 		c.mu.RUnlock()
-		return rate
+		return rates
 	}
 	c.mu.RUnlock()
 
-	rate, err := c.fetchRate()
+	rates, err := c.fetchRates()
 	if err != nil {
 		log.Printf("currency: fetch failed: %v", err)
 		c.mu.RLock()
-		cached := c.rate
+		cached := c.rates
 		c.mu.RUnlock()
-		if cached != 0 {
-			log.Printf("currency: using stale cached rate %.4f", cached)
+		if cached.USDToAUD != 0 {
+			log.Printf("currency: using stale cached rates USD=%.4f EUR=%.4f", cached.USDToAUD, cached.EURToAUD)
 			return cached
 		}
-		log.Printf("currency: no cached rate available, using fallback %.4f", fallbackRate)
-		return fallbackRate
+		log.Printf("currency: no cached rates available, using fallback")
+		return Rates{USDToAUD: fallbackUSDRate, EURToAUD: fallbackEURRate}
 	}
 
 	c.mu.Lock()
-	c.rate = rate
-	c.fetchedAt = time.Now()
+	c.rates = rates
 	c.mu.Unlock()
 
-	return rate
+	return rates
 }
 
-// RateInfo returns the current rate and when it was fetched.
-func (c *Converter) RateInfo() (rate float64, fetchedAt time.Time) {
+// USDToAUD returns the current USD→AUD exchange rate.
+func (c *Converter) USDToAUD() float64 {
+	return c.GetRates().USDToAUD
+}
+
+// RateInfo returns the current rates and when they were fetched.
+func (c *Converter) RateInfo() (Rates, time.Time) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
-	return c.rate, c.fetchedAt
+	return c.rates, c.rates.FetchedAt
 }
 
 // Refresh forces a new fetch regardless of TTL.
 func (c *Converter) Refresh() error {
-	rate, err := c.fetchRate()
+	rates, err := c.fetchRates()
 	if err != nil {
 		return err
 	}
 	c.mu.Lock()
-	c.rate = rate
-	c.fetchedAt = time.Now()
+	c.rates = rates
 	c.mu.Unlock()
 	return nil
 }
 
-func (c *Converter) fetchRate() (float64, error) {
+func (c *Converter) fetchRates() (Rates, error) {
 	resp, err := c.httpClient.Get(frankfurterURL)
 	if err != nil {
-		return 0, fmt.Errorf("GET %s: %w", frankfurterURL, err)
+		return Rates{}, fmt.Errorf("GET %s: %w", frankfurterURL, err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return 0, fmt.Errorf("unexpected status %d from Frankfurter", resp.StatusCode)
+		return Rates{}, fmt.Errorf("unexpected status %d from Frankfurter", resp.StatusCode)
 	}
 
 	var result frankfurterResponse
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return 0, fmt.Errorf("decoding Frankfurter response: %w", err)
+		return Rates{}, fmt.Errorf("decoding Frankfurter response: %w", err)
 	}
 
-	rate, ok := result.Rates["AUD"]
-	if !ok || rate == 0 {
-		return 0, fmt.Errorf("AUD rate not found in Frankfurter response")
+	usdToAUD, ok := result.Rates["AUD"]
+	if !ok || usdToAUD == 0 {
+		return Rates{}, fmt.Errorf("AUD rate not found in Frankfurter response")
 	}
-	return rate, nil
+
+	usdToEUR, ok := result.Rates["EUR"]
+	if !ok || usdToEUR == 0 {
+		return Rates{}, fmt.Errorf("EUR rate not found in Frankfurter response")
+	}
+
+	// EUR→AUD derived from USD as base: divide AUD rate by EUR rate
+	eurToAUD := usdToAUD / usdToEUR
+
+	return Rates{
+		USDToAUD:  usdToAUD,
+		EURToAUD:  eurToAUD,
+		FetchedAt: time.Now(),
+	}, nil
 }
