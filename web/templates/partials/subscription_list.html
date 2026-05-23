@@ -1,4 +1,19 @@
-{{define "subscription_list.html"}}{{template "subscription_rows" .}}{{end}}
+{{define "subscription_summary_content"}}
+  {{if .Subscriptions}}
+    Showing {{len .Subscriptions}} subscription{{if ne (len .Subscriptions) 1}}s{{end}}
+    &middot; <strong>{{formatAUD .TotalMonthly}}</strong>/mo
+    &middot; <strong>{{formatAUD .TotalYearly}}</strong>/yr
+  {{else}}
+    No subscriptions match your filters.
+  {{end}}
+{{end}}
+
+{{define "subscription_list.html"}}
+{{template "subscription_rows" .}}
+<p id="subscription-summary" hx-swap-oob="true" style="font-size:0.9rem; color:var(--pico-muted-color); margin-bottom:0.75rem;">
+  {{template "subscription_summary_content" .}}
+</p>
+{{end}}
 
 {{define "subscription_rows"}}
 {{range .Subscriptions}}

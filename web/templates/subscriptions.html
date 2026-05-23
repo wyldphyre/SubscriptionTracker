@@ -50,14 +50,8 @@
 {{end}}
 
 <!-- Totals -->
-<p style="font-size:0.9rem; color:var(--pico-muted-color); margin-bottom:0.75rem;">
-  {{if .Subscriptions}}
-    Showing {{len .Subscriptions}} subscription{{if ne (len .Subscriptions) 1}}s{{end}}
-    &middot; <strong>{{formatAUD .TotalMonthly}}</strong>/mo
-    &middot; <strong>{{formatAUD .TotalYearly}}</strong>/yr
-  {{else}}
-    No subscriptions match your filters.
-  {{end}}
+<p id="subscription-summary" style="font-size:0.9rem; color:var(--pico-muted-color); margin-bottom:0.75rem;">
+  {{template "subscription_summary_content" .}}
 </p>
 
 <!-- Table -->
