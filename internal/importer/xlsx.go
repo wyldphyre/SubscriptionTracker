@@ -100,9 +100,10 @@ func ImportXLSX(path string) (*Result, error) {
 		// Notes
 		notes := get(row, "Notes")
 
-		// Status: cancelled if cost == 0 AND notes mentions "cancelled"
+		// Status: cancelled if the notes mention "cancelled" (a zero cost alone
+		// is not enough — some active subscriptions are free).
 		status := model.StatusActive
-		if cost == 0 && strings.Contains(strings.ToLower(notes), "cancelled") {
+		if strings.Contains(strings.ToLower(notes), "cancelled") {
 			status = model.StatusCancelled
 		}
 

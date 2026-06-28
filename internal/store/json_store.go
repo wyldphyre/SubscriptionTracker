@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -13,6 +14,9 @@ import (
 
 	"github.com/craigr/subscriptiontracker/internal/model"
 )
+
+// ErrNotFound is returned when a subscription or tag does not exist.
+var ErrNotFound = errors.New("not found")
 
 // JSONStore persists subscriptions to a JSON file with an in-memory cache.
 // All mutations use an atomic rename to avoid corrupt writes on crash.
@@ -141,7 +145,7 @@ func (s *JSONStore) Update(sub *model.Subscription) error {
 			return s.flush()
 		}
 	}
-	return fmt.Errorf("subscription %q not found", sub.ID)
+	return fmt.Errorf("subscription %q: %w", sub.ID, ErrNotFound)
 }
 
 func (s *JSONStore) Delete(id string) error {
@@ -154,7 +158,7 @@ func (s *JSONStore) Delete(id string) error {
 			return s.flush()
 		}
 	}
-	return fmt.Errorf("subscription %q not found", id)
+	return fmt.Errorf("subscription %q: %w", id, ErrNotFound)
 }
 
 func (s *JSONStore) ListTags() []string {
@@ -202,7 +206,7 @@ func (s *JSONStore) RenameTag(oldName, newName string) error {
 		}
 	}
 	if !found {
-		return fmt.Errorf("tag %q not found", oldName)
+		return fmt.Errorf("tag %q: %w", oldName, ErrNotFound)
 	}
 	sort.Strings(s.cache.Tags)
 
@@ -231,7 +235,7 @@ func (s *JSONStore) DeleteTag(name string) error {
 		}
 	}
 	if !found {
-		return fmt.Errorf("tag %q not found", name)
+		return fmt.Errorf("tag %q: %w", name, ErrNotFound)
 	}
 	s.cache.Tags = newMaster
 

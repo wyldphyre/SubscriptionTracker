@@ -1,11 +1,13 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 	"time"
 
 	"github.com/craigr/subscriptiontracker/internal/model"
+	"github.com/craigr/subscriptiontracker/internal/store"
 )
 
 // NewForm handles GET /subscriptions/new
@@ -91,11 +93,6 @@ func (h *Handlers) CreateSubscription(w http.ResponseWriter, r *http.Request) {
 // UpdateSubscription handles PUT /subscriptions/{id}
 func (h *Handlers) UpdateSubscription(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	existing, ok := h.store.GetByID(id)
-	if !ok {
-		http.NotFound(w, r)
-		return
-	}
 
 	sub, errMsg := parseSubscriptionForm(r)
 	if errMsg != "" {
@@ -116,9 +113,14 @@ func (h *Handlers) UpdateSubscription(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sub.ID = id
-	sub.CreatedAt = existing.CreatedAt
 
+	// Update preserves CreatedAt internally and returns ErrNotFound if the
+	// record no longer exists, so there is no read-modify-write race here.
 	if err := h.store.Update(sub); err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			http.NotFound(w, r)
+			return
+		}
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -133,6 +135,10 @@ func (h *Handlers) UpdateSubscription(w http.ResponseWriter, r *http.Request) {
 func (h *Handlers) DeleteSubscription(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if err := h.store.Delete(id); err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			http.NotFound(w, r)
+			return
+		}
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -168,31 +174,42 @@ func parseSubscriptionForm(r *http.Request) (*model.Subscription, string) {
 		if err != nil {
 			return &model.Subscription{}, "Cost must be a number"
 		}
+		if v < 0 {
+			return &model.Subscription{}, "Cost cannot be negative"
+		}
 		cost = v
 	}
 
 	currency := model.Currency(r.FormValue("currency"))
 	if currency == "" {
 		currency = model.CurrencyAUD
+	} else if !currency.Valid() {
+		return &model.Subscription{}, "Unknown currency"
 	}
 
 	cycle := model.BillingCycle(r.FormValue("cycle"))
 	if cycle == "" {
 		cycle = model.CycleMonthly
+	} else if !cycle.Valid() {
+		return &model.Subscription{}, "Unknown billing cycle"
 	}
 
 	status := model.Status(r.FormValue("status"))
 	if status == "" {
 		status = model.StatusActive
+	} else if !status.Valid() {
+		return &model.Subscription{}, "Unknown status"
 	}
 
 	tags := parseTagsField(r.FormValue("tags"))
 
 	var startDate time.Time
 	if s := r.FormValue("start_date"); s != "" {
-		if t, err := time.Parse("2006-01-02", s); err == nil {
-			startDate = t
+		t, err := time.Parse("2006-01-02", s)
+		if err != nil {
+			return &model.Subscription{}, "Start date must be in YYYY-MM-DD format"
 		}
+		startDate = t
 	}
 
 	sub := &model.Subscription{

@@ -16,7 +16,7 @@ import (
 	"github.com/craigr/subscriptiontracker/internal/store"
 )
 
-const version = "1.1"
+const version = "1.2"
 
 //go:embed web/static
 var staticFiles embed.FS
@@ -61,8 +61,9 @@ func main() {
 		log.Fatalf("store: %v", err)
 	}
 
-	// Initialise currency converter
+	// Initialise currency converter and start its background refresh loop
 	conv := currency.New(cfg.currencyTTL)
+	conv.Start()
 
 	// Parse all templates from embedded FS
 	tmpl, err := template.New("").

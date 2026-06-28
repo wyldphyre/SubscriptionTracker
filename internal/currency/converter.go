@@ -27,6 +27,7 @@ type Converter struct {
 	mu         sync.RWMutex
 	rates      Rates
 	ttl        time.Duration
+	url        string
 	httpClient *http.Client
 }
 
@@ -36,46 +37,64 @@ type frankfurterResponse struct {
 	Rates map[string]float64 `json:"rates"`
 }
 
+// retryInterval is how soon the background loop retries after a failed fetch
+// while no valid rates are cached yet.
+const retryInterval = 30 * time.Second
+
 // New creates a Converter with the given TTL for the cached rates.
 func New(ttl time.Duration) *Converter {
 	return &Converter{
 		ttl: ttl,
+		url: frankfurterURL,
 		httpClient: &http.Client{
 			Timeout: 10 * time.Second,
 		},
 	}
 }
 
-// GetRates returns the current exchange rates.
-// Uses cached values if within TTL; fetches from Frankfurter API otherwise.
-func (c *Converter) GetRates() Rates {
-	c.mu.RLock()
-	if c.rates.USDToAUD != 0 && time.Since(c.rates.FetchedAt) < c.ttl {
-		rates := c.rates
-		c.mu.RUnlock()
-		return rates
-	}
-	c.mu.RUnlock()
+// Start launches a background goroutine that keeps the cached rates fresh.
+// Rates are refreshed every TTL; if no valid rate has been fetched yet, it
+// retries more frequently. GetRates never blocks on the network, so request
+// handling is never stalled by a slow or failing upstream API.
+func (c *Converter) Start() {
+	go func() {
+		for {
+			err := c.refreshOnce()
+			c.mu.RLock()
+			haveRates := c.rates.USDToAUD != 0
+			c.mu.RUnlock()
 
+			wait := c.ttl
+			if err != nil && !haveRates {
+				wait = retryInterval
+			}
+			time.Sleep(wait)
+		}
+	}()
+}
+
+// refreshOnce fetches rates once and stores them on success.
+func (c *Converter) refreshOnce() error {
 	rates, err := c.fetchRates()
 	if err != nil {
 		log.Printf("currency: fetch failed: %v", err)
-		c.mu.RLock()
-		cached := c.rates
-		c.mu.RUnlock()
-		if cached.USDToAUD != 0 {
-			log.Printf("currency: using stale cached rates USD=%.4f EUR=%.4f", cached.USDToAUD, cached.EURToAUD)
-			return cached
-		}
-		log.Printf("currency: no cached rates available, using fallback")
-		return Rates{USDToAUD: fallbackUSDRate, EURToAUD: fallbackEURRate}
+		return err
 	}
-
 	c.mu.Lock()
 	c.rates = rates
 	c.mu.Unlock()
+	return nil
+}
 
-	return rates
+// GetRates returns the most recently cached exchange rates without blocking.
+// If no rates have been fetched yet, it returns the built-in fallback rates.
+func (c *Converter) GetRates() Rates {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	if c.rates.USDToAUD != 0 {
+		return c.rates
+	}
+	return Rates{USDToAUD: fallbackUSDRate, EURToAUD: fallbackEURRate}
 }
 
 // USDToAUD returns the current USD→AUD exchange rate.
@@ -92,20 +111,13 @@ func (c *Converter) RateInfo() (Rates, time.Time) {
 
 // Refresh forces a new fetch regardless of TTL.
 func (c *Converter) Refresh() error {
-	rates, err := c.fetchRates()
-	if err != nil {
-		return err
-	}
-	c.mu.Lock()
-	c.rates = rates
-	c.mu.Unlock()
-	return nil
+	return c.refreshOnce()
 }
 
 func (c *Converter) fetchRates() (Rates, error) {
-	resp, err := c.httpClient.Get(frankfurterURL)
+	resp, err := c.httpClient.Get(c.url)
 	if err != nil {
-		return Rates{}, fmt.Errorf("GET %s: %w", frankfurterURL, err)
+		return Rates{}, fmt.Errorf("GET %s: %w", c.url, err)
 	}
 	defer resp.Body.Close()
 
@@ -134,6 +146,6 @@ func (c *Converter) fetchRates() (Rates, error) {
 	return Rates{
 		USDToAUD:  usdToAUD,
 		EURToAUD:  eurToAUD,
-		FetchedAt: time.Now(),
+		FetchedAt: time.Now().UTC(),
 	}, nil
 }

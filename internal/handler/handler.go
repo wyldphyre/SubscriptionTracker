@@ -212,6 +212,12 @@ func (h *Handlers) buildListVM(activeTags []string, showCancelled bool, query st
 
 	queryLower := strings.ToLower(strings.TrimSpace(query))
 
+	// Build the active-tag lookup set once, rather than per subscription.
+	activeSet := make(map[string]bool, len(activeTags))
+	for _, t := range activeTags {
+		activeSet[t] = true
+	}
+
 	var filtered []SubscriptionViewModel
 	var totalMonthly, totalYearly float64
 
@@ -222,19 +228,14 @@ func (h *Handlers) buildListVM(activeTags []string, showCancelled bool, query st
 		}
 
 		// Tag filter (all selected tags must be present)
-		if len(activeTags) > 0 {
-			tagSet := map[string]bool{}
+		if len(activeSet) > 0 {
+			matched := 0
 			for _, t := range sub.Tags {
-				tagSet[t] = true
-			}
-			match := true
-			for _, at := range activeTags {
-				if !tagSet[at] {
-					match = false
-					break
+				if activeSet[t] {
+					matched++
 				}
 			}
-			if !match {
+			if matched < len(activeSet) {
 				continue
 			}
 		}

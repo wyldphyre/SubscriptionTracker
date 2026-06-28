@@ -42,8 +42,38 @@ func (c BillingCycle) Label() string {
 	}
 }
 
+// Valid reports whether the billing cycle is a known value.
+func (c BillingCycle) Valid() bool {
+	switch c {
+	case CycleMonthly, CycleYearly, CycleEvery2Year:
+		return true
+	default:
+		return false
+	}
+}
+
 // AllCurrencies is the ordered list of valid currencies for UI display.
 var AllCurrencies = []Currency{CurrencyAUD, CurrencyUSD, CurrencyEUR}
+
+// Valid reports whether the currency is a known value.
+func (c Currency) Valid() bool {
+	switch c {
+	case CurrencyAUD, CurrencyUSD, CurrencyEUR:
+		return true
+	default:
+		return false
+	}
+}
+
+// Valid reports whether the status is a known value.
+func (s Status) Valid() bool {
+	switch s {
+	case StatusActive, StatusCancelled:
+		return true
+	default:
+		return false
+	}
+}
 
 type Subscription struct {
 	ID          string       `json:"id"`
