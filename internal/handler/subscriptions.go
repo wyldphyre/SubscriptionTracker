@@ -1,11 +1,14 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/craigr/subscriptiontracker/internal/model"
+	"github.com/craigr/subscriptiontracker/internal/store"
 )
 
 // NewForm handles GET /subscriptions/new
@@ -46,24 +49,12 @@ func (h *Handlers) EditForm(w http.ResponseWriter, r *http.Request) {
 	h.render(w, r, "subscription_form.html", vm)
 }
 
-// GetSubscription handles GET /subscriptions/{id} — returns a single row partial.
-func (h *Handlers) GetSubscription(w http.ResponseWriter, r *http.Request) {
-	id := r.PathValue("id")
-	sub, ok := h.store.GetByID(id)
-	if !ok {
-		http.NotFound(w, r)
-		return
-	}
-	rates := h.converter.GetRates()
-	vm := toViewModel(*sub, rates.USDToAUD, rates.EURToAUD)
-	h.render(w, r, "subscription_row.html", vm)
-}
-
 // CreateSubscription handles POST /subscriptions
 func (h *Handlers) CreateSubscription(w http.ResponseWriter, r *http.Request) {
 	sub, errMsg := parseSubscriptionForm(r)
 	if errMsg != "" {
 		vm := FormViewModel{
+			ActivePage:    "subscriptions",
 			Sub:           sub,
 			AllTags:       h.store.ListTags(),
 			AllCycles:     model.AllCycles,
@@ -72,7 +63,7 @@ func (h *Handlers) CreateSubscription(w http.ResponseWriter, r *http.Request) {
 		}
 		w.WriteHeader(http.StatusUnprocessableEntity)
 		if isHTMX(r) {
-			h.render(w, r, "subscription_form_modal.html", vm)
+			h.render(w, r, "subscription_form_fields", vm)
 		} else {
 			h.render(w, r, "subscription_form.html", vm)
 		}
@@ -84,22 +75,18 @@ func (h *Handlers) CreateSubscription(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("HX-Trigger", `{"showToast":"Subscription added"}`)
+	notifyChanged(w, "Subscription added")
 	redirect(w, r, "/subscriptions")
 }
 
 // UpdateSubscription handles PUT /subscriptions/{id}
 func (h *Handlers) UpdateSubscription(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	existing, ok := h.store.GetByID(id)
-	if !ok {
-		http.NotFound(w, r)
-		return
-	}
 
 	sub, errMsg := parseSubscriptionForm(r)
 	if errMsg != "" {
 		vm := FormViewModel{
+			ActivePage:    "subscriptions",
 			Sub:           sub,
 			AllTags:       h.store.ListTags(),
 			AllCycles:     model.AllCycles,
@@ -108,7 +95,7 @@ func (h *Handlers) UpdateSubscription(w http.ResponseWriter, r *http.Request) {
 		}
 		w.WriteHeader(http.StatusUnprocessableEntity)
 		if isHTMX(r) {
-			h.render(w, r, "subscription_form_modal.html", vm)
+			h.render(w, r, "subscription_form_fields", vm)
 		} else {
 			h.render(w, r, "subscription_form.html", vm)
 		}
@@ -116,28 +103,83 @@ func (h *Handlers) UpdateSubscription(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sub.ID = id
-	sub.CreatedAt = existing.CreatedAt
 
+	// Update preserves CreatedAt internally and returns ErrNotFound if the
+	// record no longer exists, so there is no read-modify-write race here.
 	if err := h.store.Update(sub); err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			http.NotFound(w, r)
+			return
+		}
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	rates := h.converter.GetRates()
-	vm := toViewModel(*sub, rates.USDToAUD, rates.EURToAUD)
-	w.Header().Set("HX-Trigger", `{"showToast":"Subscription updated"}`)
-	h.render(w, r, "subscription_row.html", vm)
+	notifyChanged(w, "Subscription updated")
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// SetStatus handles POST /subscriptions/{id}/status — flips a subscription
+// between active and cancelled.
+//
+// This replaces the old approach of having the Cancel/Reactivate buttons post
+// the whole record back as JSON in hx-vals: that JSON was built inside an HTML
+// attribute, so any name containing a quote, or any multi-line note, produced
+// invalid JSON and the button did nothing at all.
+func (h *Handlers) SetStatus(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "invalid form data", http.StatusBadRequest)
+		return
+	}
+	status := model.Status(r.FormValue("status"))
+	if !status.Valid() {
+		http.Error(w, "Unknown status", http.StatusBadRequest)
+		return
+	}
+
+	sub, ok := h.store.GetByID(id)
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	if sub.Status == status {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	sub.Status = status
+
+	if err := h.store.Update(sub); err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			http.NotFound(w, r)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	msg := "Subscription cancelled"
+	if status == model.StatusActive {
+		msg = "Subscription reactivated"
+	}
+	notifyChanged(w, msg)
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // DeleteSubscription handles DELETE /subscriptions/{id}
 func (h *Handlers) DeleteSubscription(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if err := h.store.Delete(id); err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			http.NotFound(w, r)
+			return
+		}
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	w.Header().Set("HX-Trigger", `{"showToast":"Subscription deleted"}`)
-	w.WriteHeader(http.StatusOK)
+	notifyChanged(w, "Subscription deleted")
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // RefreshCurrency handles POST /currency/refresh
@@ -147,7 +189,7 @@ func (h *Handlers) RefreshCurrency(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	vm := h.buildDashboardVM()
-	w.Header().Set("HX-Trigger", `{"showToast":"Exchange rate refreshed"}`)
+	hxTrigger(w, map[string]any{"showToast": "Exchange rate refreshed"})
 	h.render(w, r, "dashboard_summary.html", vm)
 }
 
@@ -157,7 +199,7 @@ func parseSubscriptionForm(r *http.Request) (*model.Subscription, string) {
 		return &model.Subscription{}, "invalid form data"
 	}
 
-	name := r.FormValue("name")
+	name := strings.TrimSpace(r.FormValue("name"))
 	if name == "" {
 		return &model.Subscription{}, "Name is required"
 	}
@@ -168,42 +210,53 @@ func parseSubscriptionForm(r *http.Request) (*model.Subscription, string) {
 		if err != nil {
 			return &model.Subscription{}, "Cost must be a number"
 		}
+		if v < 0 {
+			return &model.Subscription{}, "Cost cannot be negative"
+		}
 		cost = v
 	}
 
 	currency := model.Currency(r.FormValue("currency"))
 	if currency == "" {
 		currency = model.CurrencyAUD
+	} else if !currency.Valid() {
+		return &model.Subscription{}, "Unknown currency"
 	}
 
 	cycle := model.BillingCycle(r.FormValue("cycle"))
 	if cycle == "" {
 		cycle = model.CycleMonthly
+	} else if !cycle.Valid() {
+		return &model.Subscription{}, "Unknown billing cycle"
 	}
 
 	status := model.Status(r.FormValue("status"))
 	if status == "" {
 		status = model.StatusActive
+	} else if !status.Valid() {
+		return &model.Subscription{}, "Unknown status"
 	}
 
 	tags := parseTagsField(r.FormValue("tags"))
 
 	var startDate time.Time
 	if s := r.FormValue("start_date"); s != "" {
-		if t, err := time.Parse("2006-01-02", s); err == nil {
-			startDate = t
+		t, err := time.Parse("2006-01-02", s)
+		if err != nil {
+			return &model.Subscription{}, "Start date must be in YYYY-MM-DD format"
 		}
+		startDate = t
 	}
 
 	sub := &model.Subscription{
 		Name:        name,
-		Description: r.FormValue("description"),
+		Description: strings.TrimSpace(r.FormValue("description")),
 		StartDate:   startDate,
 		Cost:        cost,
 		Currency:    currency,
 		Cycle:       cycle,
 		Tags:        tags,
-		Notes:       r.FormValue("notes"),
+		Notes:       strings.TrimSpace(r.FormValue("notes")),
 		Status:      status,
 	}
 	return sub, ""

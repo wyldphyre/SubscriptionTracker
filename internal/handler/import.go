@@ -10,9 +10,18 @@ import (
 	"github.com/craigr/subscriptiontracker/internal/importer"
 )
 
+// maxUploadBytes caps an xlsx upload. ParseMultipartForm's argument only caps
+// how much is held in memory — without this the rest spools to disk unbounded.
+const maxUploadBytes = 32 << 20 // 32 MiB
+
+// maxWarningsShown limits how many import warnings go into the toast message,
+// which travels in a response header and must stay a sane length.
+const maxWarningsShown = 5
+
 // ImportXLSX handles POST /import/xlsx
 func (h *Handlers) ImportXLSX(w http.ResponseWriter, r *http.Request) {
-	if err := r.ParseMultipartForm(32 << 20); err != nil {
+	r.Body = http.MaxBytesReader(w, r.Body, maxUploadBytes)
+	if err := r.ParseMultipartForm(maxUploadBytes); err != nil {
 		http.Error(w, "could not parse form", http.StatusBadRequest)
 		return
 	}
@@ -49,6 +58,17 @@ func (h *Handlers) ImportXLSX(w http.ResponseWriter, r *http.Request) {
 
 	replaceAll := r.FormValue("replace_all") == "1" || r.FormValue("replace_all") == "true"
 
+	// A sheet with the right headers but no usable rows parses successfully and
+	// yields zero subscriptions. Replacing everything with that silently erases
+	// the entire dataset, so refuse rather than guess the user meant it.
+	if replaceAll && result.Count == 0 {
+		http.Error(w,
+			"Import cancelled: the file contained no subscription rows, and \"Replace all existing data\" "+
+				"would have deleted everything. Check the file, or untick Replace all.",
+			http.StatusBadRequest)
+		return
+	}
+
 	if replaceAll {
 		if err := h.store.ReplaceAll(result.Subscriptions); err != nil {
 			log.Printf("import: ReplaceAll error: %v", err)
@@ -64,10 +84,28 @@ func (h *Handlers) ImportXLSX(w http.ResponseWriter, r *http.Request) {
 	}
 
 	msg := fmt.Sprintf("Imported %d subscriptions", result.Count)
-	if len(result.Warnings) > 0 {
-		msg += fmt.Sprintf(" (%d warnings: %s)", len(result.Warnings), strings.Join(result.Warnings, "; "))
+	if n := len(result.Warnings); n > 0 {
+		shown := result.Warnings
+		if n > maxWarningsShown {
+			shown = shown[:maxWarningsShown]
+		}
+		msg += fmt.Sprintf(" (%d warning%s: %s", n, plural(n), strings.Join(shown, "; "))
+		if n > maxWarningsShown {
+			msg += fmt.Sprintf("; and %d more — see the server log", n-maxWarningsShown)
+		}
+		msg += ")"
+		for _, warn := range result.Warnings {
+			log.Printf("import: warning: %s", warn)
+		}
 	}
 
-	w.Header().Set("HX-Trigger", fmt.Sprintf(`{"showToast":%q}`, msg))
+	notifyChanged(w, msg)
 	redirect(w, r, "/subscriptions")
+}
+
+func plural(n int) string {
+	if n == 1 {
+		return ""
+	}
+	return "s"
 }

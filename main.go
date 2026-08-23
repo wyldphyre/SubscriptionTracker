@@ -16,7 +16,7 @@ import (
 	"github.com/craigr/subscriptiontracker/internal/store"
 )
 
-const version = "1.1"
+const version = "1.3"
 
 //go:embed web/static
 var staticFiles embed.FS
@@ -61,8 +61,9 @@ func main() {
 		log.Fatalf("store: %v", err)
 	}
 
-	// Initialise currency converter
+	// Initialise currency converter and start its background refresh loop
 	conv := currency.New(cfg.currencyTTL)
+	conv.Start()
 
 	// Parse all templates from embedded FS
 	tmpl, err := template.New("").
@@ -88,9 +89,11 @@ func main() {
 	if err != nil {
 		log.Fatalf("static files: %v", err)
 	}
-	mux.Handle("GET /static/",
-		http.StripPrefix("/static/", http.FileServer(http.FS(staticSub))),
-	)
+	staticHandler, err := handler.StaticHandler(staticSub)
+	if err != nil {
+		log.Fatalf("static files: %v", err)
+	}
+	mux.Handle("GET /static/", http.StripPrefix("/static/", staticHandler))
 
 	// Full pages
 	mux.HandleFunc("GET /{$}", h.Dashboard)
@@ -101,9 +104,9 @@ func main() {
 
 	// Subscription CRUD
 	mux.HandleFunc("POST /subscriptions", h.CreateSubscription)
-	mux.HandleFunc("GET /subscriptions/{id}", h.GetSubscription)
 	mux.HandleFunc("GET /subscriptions/{id}/edit", h.EditForm)
 	mux.HandleFunc("PUT /subscriptions/{id}", h.UpdateSubscription)
+	mux.HandleFunc("POST /subscriptions/{id}/status", h.SetStatus)
 	mux.HandleFunc("DELETE /subscriptions/{id}", h.DeleteSubscription)
 
 	// Tags
@@ -120,10 +123,23 @@ func main() {
 	mux.HandleFunc("GET /export/json", h.ExportJSON)
 
 	addr := fmt.Sprintf(":%s", cfg.port)
+	srv := &http.Server{
+		Addr: addr,
+		// The app has no login, so a cross-site POST would otherwise be able to
+		// mutate or erase the dataset.
+		Handler: handler.RequireSameOrigin(mux),
+		// The zero-value Server has no timeouts at all, which leaves an
+		// exposed instance open to connections that never finish.
+		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       2 * time.Minute, // generous: xlsx uploads
+		WriteTimeout:      2 * time.Minute,
+		IdleTimeout:       2 * time.Minute,
+	}
+
 	log.Printf("Subscription Tracker listening on http://localhost%s", addr)
 	log.Printf("Data file: %s", cfg.dataFile)
 
-	if err := http.ListenAndServe(addr, mux); err != nil {
+	if err := srv.ListenAndServe(); err != nil {
 		log.Fatalf("server: %v", err)
 	}
 }

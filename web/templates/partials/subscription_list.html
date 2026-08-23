@@ -13,6 +13,22 @@
 <p id="subscription-summary" hx-swap-oob="true" style="font-size:0.9rem; color:var(--pico-muted-color); margin-bottom:0.75rem;">
   {{template "subscription_summary_content" .}}
 </p>
+{{/* Keep the chips in step with the tag list, so a tag added or renamed while
+     editing shows up without a page reload. */}}
+<div id="tag-chips" hx-swap-oob="true" style="margin-bottom:0.75rem; display:flex; flex-wrap:wrap; gap:0.4rem;">
+  {{template "tag_chips" .}}
+</div>
+{{end}}
+
+{{define "tag_chips"}}
+{{range .AllTags}}
+<button type="button"
+        class="tag-chip {{if contains $.ActiveTags .}}tag-chip-active{{end}}"
+        data-tag="{{.}}"
+        onclick="toggleTag(this)">
+  {{.}}
+</button>
+{{end}}
 {{end}}
 
 {{define "subscription_rows"}}

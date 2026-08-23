@@ -6,7 +6,7 @@
 
 {{define "subscription_form_fields"}}
 {{$isNew := eq .Sub.ID ""}}
-<article style="max-width:560px; margin:auto;">
+<article id="subscription-form" style="max-width:560px; margin:auto;">
   <header>
     <div style="display:flex; justify-content:space-between; align-items:center;">
       <h3 style="margin:0;">{{if $isNew}}Add subscription{{else}}Edit subscription{{end}}</h3>
@@ -19,13 +19,16 @@
   <div role="alert" style="color:var(--pico-del-color); margin-bottom:1rem;">{{.Error}}</div>
   {{end}}
 
-  <form {{if $isNew}}
+  {{/* Both branches target the form itself: a 422 re-renders it in place with
+       the error, while a success returns no content and just closes the modal.
+       The list behind the modal reloads via the subsChanged event. */}}
+  <form hx-target="#subscription-form"
+        hx-swap="outerHTML"
+        {{if $isNew}}
           hx-post="/subscriptions"
           hx-on::after-request="if(event.detail.successful){ document.getElementById('modal-container').close(); window.location='/subscriptions'; }"
         {{else}}
           hx-put="/subscriptions/{{.Sub.ID}}"
-          hx-target="#sub-{{.Sub.ID}}"
-          hx-swap="outerHTML"
           hx-on::after-request="if(event.detail.successful) document.getElementById('modal-container').close()"
         {{end}}>
 

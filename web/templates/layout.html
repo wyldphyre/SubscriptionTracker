@@ -4,6 +4,19 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Subscription Tracker</title>
+  <!-- htmx ignores 4xx bodies by default, which silently swallowed every
+       validation message the server sends back. 422 carries a re-rendered form
+       or row and must be swapped; other errors keep the default behaviour. -->
+  <meta name="htmx-config" content='{"responseHandling":[{"code":"204","swap":false},{"code":"[23]..","swap":true},{"code":"422","swap":true},{"code":"[45]..","swap":false,"error":true}]}'>
+  <script>
+    // Applied before first paint so a dark-mode user does not get a white flash.
+    (function() {
+      try {
+        var saved = localStorage.getItem('theme');
+        if (saved) document.documentElement.dataset.theme = saved;
+      } catch (e) { /* storage unavailable (private mode) — keep the default */ }
+    })();
+  </script>
   <link rel="stylesheet" href="/static/pico.min.css">
   <link rel="stylesheet" href="/static/app.css">
 </head>
@@ -77,12 +90,8 @@
     function toggleTheme() {
       var html = document.documentElement;
       html.dataset.theme = html.dataset.theme === 'dark' ? 'light' : 'dark';
-      localStorage.setItem('theme', html.dataset.theme);
+      try { localStorage.setItem('theme', html.dataset.theme); } catch (e) { /* ignore */ }
     }
-    (function() {
-      var saved = localStorage.getItem('theme');
-      if (saved) document.documentElement.dataset.theme = saved;
-    })();
   </script>
 </body>
 </html>

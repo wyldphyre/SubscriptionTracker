@@ -1,5 +1,9 @@
 {{define "dashboard_summary.html"}}
-<div id="dashboard-summary">
+<div id="dashboard-summary"
+     hx-get="/"
+     hx-trigger="subsChanged from:body"
+     hx-target="this"
+     hx-swap="outerHTML">
   {{template "dashboard_summary_content" .}}
 </div>
 {{end}}

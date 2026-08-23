@@ -1,14 +1,12 @@
 package importer
 
 import (
-	"crypto/rand"
-	"encoding/hex"
 	"fmt"
-	"log"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/craigr/subscriptiontracker/internal/id"
 	"github.com/craigr/subscriptiontracker/internal/model"
 	"github.com/xuri/excelize/v2"
 )
@@ -95,14 +93,20 @@ func ImportXLSX(path string) (*Result, error) {
 		}
 
 		// Cycle
-		cycle := parseCycle(get(row, "Cycle"))
+		cycleStr := get(row, "Cycle")
+		cycle, cycleOK := parseCycle(cycleStr)
+		if !cycleOK {
+			result.Warnings = append(result.Warnings,
+				fmt.Sprintf("row %d (%s): unknown billing cycle %q, using monthly", lineNum, name, cycleStr))
+		}
 
 		// Notes
 		notes := get(row, "Notes")
 
-		// Status: cancelled if cost == 0 AND notes mentions "cancelled"
+		// Status: cancelled if the notes mention "cancelled" (a zero cost alone
+		// is not enough — some active subscriptions are free).
 		status := model.StatusActive
-		if cost == 0 && strings.Contains(strings.ToLower(notes), "cancelled") {
+		if strings.Contains(strings.ToLower(notes), "cancelled") {
 			status = model.StatusCancelled
 		}
 
@@ -126,7 +130,7 @@ func ImportXLSX(path string) (*Result, error) {
 		}
 
 		sub := model.Subscription{
-			ID:          newUUID(),
+			ID:          id.NewUUID(),
 			Name:        name,
 			Description: get(row, "Description"),
 			StartDate:   startDate,
@@ -151,19 +155,32 @@ func ImportXLSX(path string) (*Result, error) {
 	return result, nil
 }
 
-func parseCycle(s string) model.BillingCycle {
+// parseCycle maps a spreadsheet cycle label to a billing cycle. The bool
+// reports whether the label was recognised; unrecognised labels fall back to
+// monthly and are reported to the user as warnings rather than applied silently.
+//
+// "Bi-annual"/"biannual" mean twice a year here, matching common usage; every
+// two years is spelled "biennial" or "every 2 years".
+func parseCycle(s string) (model.BillingCycle, bool) {
 	switch strings.ToLower(strings.TrimSpace(s)) {
-	case "monthly":
-		return model.CycleMonthly
-	case "yearly", "annual", "annually":
-		return model.CycleYearly
-	case "every 2 years", "every2years", "bi-annual", "biannual":
-		return model.CycleEvery2Year
+	case "":
+		return model.CycleMonthly, true
+	case "weekly", "every week":
+		return model.CycleWeekly, true
+	case "monthly", "every month":
+		return model.CycleMonthly, true
+	case "quarterly", "every 3 months", "every quarter":
+		return model.CycleQuarterly, true
+	case "six monthly", "sixmonthly", "6 monthly", "every 6 months",
+		"half-yearly", "half yearly", "semi-annual", "semiannual",
+		"bi-annual", "biannual":
+		return model.CycleSixMonthly, true
+	case "yearly", "annual", "annually", "every year":
+		return model.CycleYearly, true
+	case "every 2 years", "every2years", "2 yearly", "biennial", "bi-ennial":
+		return model.CycleEvery2Year, true
 	default:
-		if s != "" {
-			log.Printf("importer: unknown cycle %q, defaulting to monthly", s)
-		}
-		return model.CycleMonthly
+		return model.CycleMonthly, false
 	}
 }
 
@@ -180,13 +197,13 @@ func parseDate(s string) (time.Time, error) {
 	// Excel via excelize often returns dates as "MM-DD-YY" (e.g. "10-20-18")
 	// or "D-MMM" (e.g. "3-Jul"). We try the most common formats first.
 	formats := []string{
-		"01-02-06",          // MM-DD-YY  (most common from this spreadsheet)
-		"2-Jan",             // D-MMM     (e.g. "3-Jul" = July 3 current year)
-		"2-Jan-06",          // D-MMM-YY
-		"2-Jan-2006",        // D-MMM-YYYY
-		"2006-01-02",        // ISO
-		"02/01/2006",        // DD/MM/YYYY
-		"01/02/2006",        // MM/DD/YYYY
+		"01-02-06",   // MM-DD-YY  (most common from this spreadsheet)
+		"2-Jan",      // D-MMM     (e.g. "3-Jul" = July 3 current year)
+		"2-Jan-06",   // D-MMM-YY
+		"2-Jan-2006", // D-MMM-YYYY
+		"2006-01-02", // ISO
+		"02/01/2006", // DD/MM/YYYY
+		"01/02/2006", // MM/DD/YYYY
 		"2006-01-02T15:04:05Z",
 		"2006-01-02T15:04:05",
 	}
@@ -206,19 +223,4 @@ func parseDate(s string) (time.Time, error) {
 		return t, nil
 	}
 	return time.Time{}, fmt.Errorf("unrecognised date format: %q", s)
-}
-
-// newUUID generates a random UUID v4 string.
-func newUUID() string {
-	b := make([]byte, 16)
-	_, _ = rand.Read(b)
-	b[6] = (b[6] & 0x0f) | 0x40 // version 4
-	b[8] = (b[8] & 0x3f) | 0x80 // variant bits
-	return fmt.Sprintf("%s-%s-%s-%s-%s",
-		hex.EncodeToString(b[0:4]),
-		hex.EncodeToString(b[4:6]),
-		hex.EncodeToString(b[6:8]),
-		hex.EncodeToString(b[8:10]),
-		hex.EncodeToString(b[10:16]),
-	)
 }
