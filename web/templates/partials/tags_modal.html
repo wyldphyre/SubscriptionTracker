@@ -31,10 +31,10 @@
 {{end}}
 
 {{define "tag_row.html"}}
-<tr id="tag-row-{{urlenc .Tag}}">
+<tr id="tag-row-{{tagDOMID .Tag}}">
   <td>
     <form hx-put="/tags/{{urlenc .Tag}}"
-          hx-target="#tag-row-{{urlenc .Tag}}"
+          hx-target="#tag-row-{{tagDOMID .Tag}}"
           hx-swap="outerHTML"
           style="display:flex; gap:0.5rem; align-items:center; margin:0;">
       <input type="text" name="name" value="{{.Tag}}"
@@ -52,8 +52,8 @@
   </td>
   <td>
     <button hx-delete="/tags/{{urlenc .Tag}}"
-            hx-target="#tag-row-{{urlenc .Tag}}"
-            hx-swap="outerHTML"
+            hx-target="#tag-row-{{tagDOMID .Tag}}"
+            hx-swap="delete"
             hx-confirm="Delete tag &ldquo;{{.Tag}}&rdquo;? It will be removed from all subscriptions."
             class="outline secondary" style="margin:0; padding:0.3rem 0.7rem; font-size:0.85rem; white-space:nowrap;">
       Delete

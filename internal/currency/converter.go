@@ -97,18 +97,6 @@ func (c *Converter) GetRates() Rates {
 	return Rates{USDToAUD: fallbackUSDRate, EURToAUD: fallbackEURRate}
 }
 
-// USDToAUD returns the current USD→AUD exchange rate.
-func (c *Converter) USDToAUD() float64 {
-	return c.GetRates().USDToAUD
-}
-
-// RateInfo returns the current rates and when they were fetched.
-func (c *Converter) RateInfo() (Rates, time.Time) {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	return c.rates, c.rates.FetchedAt
-}
-
 // Refresh forces a new fetch regardless of TTL.
 func (c *Converter) Refresh() error {
 	return c.refreshOnce()

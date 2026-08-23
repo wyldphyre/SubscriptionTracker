@@ -15,7 +15,7 @@
       hx-get="/subscriptions/search"
       hx-target="#subscription-tbody"
       hx-swap="innerHTML"
-      hx-trigger="change from:#show-cancelled, submit"
+      hx-trigger="change from:#show-cancelled, submit, subsChanged from:body"
       style="display:flex; flex-wrap:wrap; gap:0.5rem; align-items:center; margin-bottom:0.75rem;">
 
   <input type="search" name="q" placeholder="Search…" value="{{.Query}}"
@@ -36,18 +36,9 @@
 </form>
 
 <!-- Tag chips -->
-{{if .AllTags}}
 <div id="tag-chips" style="margin-bottom:0.75rem; display:flex; flex-wrap:wrap; gap:0.4rem;">
-  {{range .AllTags}}
-  <button type="button"
-          class="tag-chip {{if contains $.ActiveTags .}}tag-chip-active{{end}}"
-          data-tag="{{.}}"
-          onclick="toggleTag(this)">
-    {{.}}
-  </button>
-  {{end}}
+  {{template "tag_chips" .}}
 </div>
-{{end}}
 
 <!-- Totals -->
 <p id="subscription-summary" style="font-size:0.9rem; color:var(--pico-muted-color); margin-bottom:0.75rem;">

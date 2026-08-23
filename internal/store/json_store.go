@@ -1,8 +1,6 @@
 package store
 
 import (
-	"crypto/rand"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/craigr/subscriptiontracker/internal/id"
 	"github.com/craigr/subscriptiontracker/internal/model"
 )
 
@@ -84,6 +83,14 @@ func (s *JSONStore) flush() error {
 		os.Remove(tmpName)
 		return fmt.Errorf("writing temp file: %w", err)
 	}
+	// Flush the file's contents to disk before the rename. Without this the
+	// rename can land while the data blocks have not, leaving an empty or
+	// truncated file after a crash — exactly what the rename is meant to avoid.
+	if err := tmp.Sync(); err != nil {
+		tmp.Close()
+		os.Remove(tmpName)
+		return fmt.Errorf("syncing temp file: %w", err)
+	}
 	if err := tmp.Close(); err != nil {
 		os.Remove(tmpName)
 		return fmt.Errorf("closing temp file: %w", err)
@@ -92,23 +99,27 @@ func (s *JSONStore) flush() error {
 		os.Remove(tmpName)
 		return fmt.Errorf("renaming temp file: %w", err)
 	}
+	// Persist the directory entry too, so the rename itself survives a crash.
+	// Best effort: some filesystems do not support syncing a directory.
+	if d, err := os.Open(dir); err == nil {
+		_ = d.Sync()
+		d.Close()
+	}
 	return nil
 }
 
 func (s *JSONStore) GetAll() []model.Subscription {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	result := make([]model.Subscription, len(s.cache.Subscriptions))
-	copy(result, s.cache.Subscriptions)
-	return result
+	return cloneSubs(s.cache.Subscriptions)
 }
 
-func (s *JSONStore) GetByID(id string) (*model.Subscription, bool) {
+func (s *JSONStore) GetByID(subID string) (*model.Subscription, bool) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	for i := range s.cache.Subscriptions {
-		if s.cache.Subscriptions[i].ID == id {
-			sub := s.cache.Subscriptions[i]
+		if s.cache.Subscriptions[i].ID == subID {
+			sub := cloneSub(s.cache.Subscriptions[i])
 			return &sub, true
 		}
 	}
@@ -119,7 +130,7 @@ func (s *JSONStore) Create(sub *model.Subscription) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	sub.ID = newUUID()
+	sub.ID = id.NewUUID()
 	now := time.Now().UTC()
 	sub.CreatedAt = now
 	sub.UpdatedAt = now
@@ -127,7 +138,7 @@ func (s *JSONStore) Create(sub *model.Subscription) error {
 		sub.Status = model.StatusActive
 	}
 
-	s.cache.Subscriptions = append(s.cache.Subscriptions, *sub)
+	s.cache.Subscriptions = append(s.cache.Subscriptions, cloneSub(*sub))
 	s.upsertTagsLocked(sub.Tags)
 	return s.flush()
 }
@@ -140,7 +151,7 @@ func (s *JSONStore) Update(sub *model.Subscription) error {
 		if s.cache.Subscriptions[i].ID == sub.ID {
 			sub.UpdatedAt = time.Now().UTC()
 			sub.CreatedAt = s.cache.Subscriptions[i].CreatedAt
-			s.cache.Subscriptions[i] = *sub
+			s.cache.Subscriptions[i] = cloneSub(*sub)
 			s.upsertTagsLocked(sub.Tags)
 			return s.flush()
 		}
@@ -148,17 +159,17 @@ func (s *JSONStore) Update(sub *model.Subscription) error {
 	return fmt.Errorf("subscription %q: %w", sub.ID, ErrNotFound)
 }
 
-func (s *JSONStore) Delete(id string) error {
+func (s *JSONStore) Delete(subID string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	for i, sub := range s.cache.Subscriptions {
-		if sub.ID == id {
+		if sub.ID == subID {
 			s.cache.Subscriptions = append(s.cache.Subscriptions[:i], s.cache.Subscriptions[i+1:]...)
 			return s.flush()
 		}
 	}
-	return fmt.Errorf("subscription %q: %w", id, ErrNotFound)
+	return fmt.Errorf("subscription %q: %w", subID, ErrNotFound)
 }
 
 func (s *JSONStore) ListTags() []string {
@@ -257,7 +268,7 @@ func (s *JSONStore) ReplaceAll(subs []model.Subscription) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	s.cache.Subscriptions = subs
+	s.cache.Subscriptions = cloneSubs(subs)
 	// Rebuild tag list from all subscriptions
 	tagSet := map[string]bool{}
 	for _, sub := range subs {
@@ -281,23 +292,29 @@ func (s *JSONStore) AppendAll(subs []model.Subscription) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	s.cache.Subscriptions = append(s.cache.Subscriptions, subs...)
+	s.cache.Subscriptions = append(s.cache.Subscriptions, cloneSubs(subs)...)
 	for _, sub := range subs {
 		s.upsertTagsLocked(sub.Tags)
 	}
 	return s.flush()
 }
 
-func newUUID() string {
-	b := make([]byte, 16)
-	_, _ = rand.Read(b)
-	b[6] = (b[6] & 0x0f) | 0x40 // version 4
-	b[8] = (b[8] & 0x3f) | 0x80 // variant bits
-	return fmt.Sprintf("%s-%s-%s-%s-%s",
-		hex.EncodeToString(b[0:4]),
-		hex.EncodeToString(b[4:6]),
-		hex.EncodeToString(b[6:8]),
-		hex.EncodeToString(b[8:10]),
-		hex.EncodeToString(b[10:16]),
-	)
+// cloneSub returns a deep copy of sub. Copying the struct alone would leave the
+// Tags slice aliasing the caller's (or the cache's) backing array, so a later
+// in-place tag edit would race with, or be visible to, unrelated readers.
+func cloneSub(sub model.Subscription) model.Subscription {
+	if sub.Tags != nil {
+		tags := make([]string, len(sub.Tags))
+		copy(tags, sub.Tags)
+		sub.Tags = tags
+	}
+	return sub
+}
+
+func cloneSubs(subs []model.Subscription) []model.Subscription {
+	out := make([]model.Subscription, len(subs))
+	for i, sub := range subs {
+		out[i] = cloneSub(sub)
+	}
+	return out
 }

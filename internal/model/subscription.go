@@ -5,7 +5,10 @@ import "time"
 type BillingCycle string
 
 const (
+	CycleWeekly     BillingCycle = "weekly"
 	CycleMonthly    BillingCycle = "monthly"
+	CycleQuarterly  BillingCycle = "quarterly"
+	CycleSixMonthly BillingCycle = "sixmonthly"
 	CycleYearly     BillingCycle = "yearly"
 	CycleEvery2Year BillingCycle = "every2years"
 )
@@ -26,13 +29,26 @@ const (
 )
 
 // AllCycles is the ordered list of valid billing cycles for UI display.
-var AllCycles = []BillingCycle{CycleMonthly, CycleYearly, CycleEvery2Year}
+var AllCycles = []BillingCycle{
+	CycleWeekly,
+	CycleMonthly,
+	CycleQuarterly,
+	CycleSixMonthly,
+	CycleYearly,
+	CycleEvery2Year,
+}
 
 // CycleLabel returns a human-readable label for the billing cycle.
 func (c BillingCycle) Label() string {
 	switch c {
+	case CycleWeekly:
+		return "Weekly"
 	case CycleMonthly:
 		return "Monthly"
+	case CycleQuarterly:
+		return "Quarterly"
+	case CycleSixMonthly:
+		return "Six Monthly"
 	case CycleYearly:
 		return "Yearly"
 	case CycleEvery2Year:
@@ -45,7 +61,7 @@ func (c BillingCycle) Label() string {
 // Valid reports whether the billing cycle is a known value.
 func (c BillingCycle) Valid() bool {
 	switch c {
-	case CycleMonthly, CycleYearly, CycleEvery2Year:
+	case CycleWeekly, CycleMonthly, CycleQuarterly, CycleSixMonthly, CycleYearly, CycleEvery2Year:
 		return true
 	default:
 		return false
@@ -111,15 +127,27 @@ func (s *Subscription) CostAUD(usdToAUD, eurToAUD float64) float64 {
 // CostPerMonthAUD returns the monthly equivalent cost in AUD.
 func (s *Subscription) CostPerMonthAUD(usdToAUD, eurToAUD float64) float64 {
 	base := s.CostAUD(usdToAUD, eurToAUD)
-	switch s.Cycle {
+	return base / s.Cycle.months()
+}
+
+// months returns how many months one billing period covers. Unknown cycles are
+// treated as monthly, matching the importer's fallback.
+func (c BillingCycle) months() float64 {
+	switch c {
+	case CycleWeekly:
+		return 12.0 / 52.0 // a week is 1/52 of a year
 	case CycleMonthly:
-		return base
+		return 1
+	case CycleQuarterly:
+		return 3
+	case CycleSixMonthly:
+		return 6
 	case CycleYearly:
-		return base / 12
+		return 12
 	case CycleEvery2Year:
-		return base / 24
+		return 24
 	default:
-		return base
+		return 1
 	}
 }
 

@@ -4,10 +4,11 @@ A self-contained web app for tracking recurring subscriptions. Runs as a single 
 
 ## Features
 
-- **Dashboard** — spending summary cards (monthly/yearly AUD), breakdown by tag, top 5 most expensive subscriptions
+- **Dashboard** — spending summary cards (monthly/yearly AUD), breakdown by tag, top 10 most expensive subscriptions
 - **Subscription list** — sortable table with real-time search and tag filtering
 - **Tags** — replace the single "Category" field from the spreadsheet; multiple tags per subscription, multi-select filtering; rename or delete tags globally via **Actions → Manage Tags**
-- **Currency conversion** — all costs shown in AUD regardless of original currency (USD→AUD via [Frankfurter](https://www.frankfurter.app/), cached for 6 hours)
+- **Currency conversion** — all costs shown in AUD regardless of original currency (AUD, USD and EUR supported; rates via [Frankfurter](https://www.frankfurter.app/), cached for 6 hours)
+- **Billing cycles** — weekly, monthly, quarterly, six-monthly, yearly and every-2-years, all normalised to a monthly and yearly AUD figure
 - **Active / Cancelled status** — explicit status field; cancelled subscriptions are hidden by default with a toggle to show them
 - **Add / Edit / Delete** — inline modal forms, no page reloads
 - **Import** — import directly from the original Excel spreadsheet (`.xlsx`)
@@ -45,8 +46,11 @@ On first run a fresh `subscriptions.json` data file is created in the current di
 The importer maps the original spreadsheet columns by header name and:
 
 - Converts the single **Category** column to a **Tag** (e.g. `Entertainment - Podcast` → `entertainment-podcast`)
-- Detects cancelled subscriptions: rows where cost is `0` and the Notes field contains "cancelled" are imported as `status: cancelled`
+- Detects cancelled subscriptions: rows whose Notes field contains "cancelled" are imported as `status: cancelled`. A cost of `0` alone is not enough — some active subscriptions are free.
 - Handles Excel's `MM-DD-YY` date format automatically
+- Maps cycle labels including `Weekly`, `Monthly`, `Quarterly`, `Six Monthly`, `Yearly` and `Every 2 Years`. An unrecognised label falls back to monthly and is reported as a warning rather than applied silently.
+
+"Replace all existing data" is refused if the file contains no subscription rows, so a wrong or empty spreadsheet cannot wipe your data.
 
 
 ## Configuration
@@ -124,6 +128,18 @@ The script will:
 Port and data path are configured in `docker-compose.yml`, not in `deploy.ps1`.
 
 
+## Security
+
+The app has **no login** — anyone who can reach the port can read and change your
+data. Run it on a trusted network only, or put it behind a reverse proxy that
+handles authentication.
+
+State-changing requests (`POST`/`PUT`/`DELETE`) are rejected unless the browser
+reports them as same-origin, so another site you have open cannot quietly post to
+the app. That is a defence against cross-site requests, not a substitute for
+authentication.
+
+
 ## Backing up your data
 
 `backup.ps1` creates compressed backups of `subscriptions.json` with automatic daily/weekly/monthly rotation. Run it from the same folder as `docker-compose.yml`.
@@ -170,6 +186,7 @@ SubscriptionTracker/
 ├── deploy.ps1                  # Windows: load image + docker-compose up
 ├── backup.ps1                  # Windows: backup subscriptions.json with rotation
 ├── internal/
+│   ├── id/id.go                # UUID generation
 │   ├── model/subscription.go   # Core types and cost calculation methods
 │   ├── store/json_store.go     # Atomic JSON file persistence
 │   ├── currency/converter.go   # Frankfurter API client with cache
@@ -212,8 +229,8 @@ Valid values:
 
 | Field | Values |
 |---|---|
-| `currency` | `AUD`, `USD` |
-| `cycle` | `monthly`, `yearly`, `every2years` |
+| `currency` | `AUD`, `USD`, `EUR` |
+| `cycle` | `weekly`, `monthly`, `quarterly`, `sixmonthly`, `yearly`, `every2years` |
 | `status` | `active`, `cancelled` |
 
 

@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"html/template"
 	"net/http"
@@ -47,6 +49,27 @@ func redirect(w http.ResponseWriter, r *http.Request, url string) {
 		return
 	}
 	http.Redirect(w, r, url, http.StatusSeeOther)
+}
+
+// hxTrigger sets the HX-Trigger response header from a set of client-side
+// events. Values are JSON-encoded rather than interpolated, so toast text
+// containing quotes or newlines cannot produce a malformed header.
+func hxTrigger(w http.ResponseWriter, events map[string]any) {
+	b, err := json.Marshal(events)
+	if err != nil {
+		return
+	}
+	// Header values cannot span lines; JSON encoding already escapes newlines,
+	// but be explicit in case a value slips through some other path.
+	v := strings.NewReplacer("\r", " ", "\n", " ").Replace(string(b))
+	w.Header().Set("HX-Trigger", v)
+}
+
+// notifyChanged fires a toast and tells the subscriptions page to reload its
+// list, so row values, the "% of total" column and the totals line all stay in
+// agreement with the filters currently applied.
+func notifyChanged(w http.ResponseWriter, msg string) {
+	hxTrigger(w, map[string]any{"showToast": msg, "subsChanged": true})
 }
 
 // ---- View Models ----
@@ -338,4 +361,14 @@ var FuncMap = template.FuncMap{
 		return t.Format("2006-01-02")
 	},
 	"urlenc": url.PathEscape,
+	// tagDOMID renders a tag as a DOM id that is also a valid CSS identifier.
+	// Percent-encoding is not: "#tag-row-home%20theatre" makes querySelector
+	// throw, which silently breaks htmx targeting for any multi-word tag.
+	"tagDOMID": tagDOMID,
+}
+
+// tagDOMID encodes a tag into characters that are always safe in a DOM id and
+// in a CSS selector.
+func tagDOMID(tag string) string {
+	return hex.EncodeToString([]byte(tag))
 }

@@ -69,7 +69,7 @@ func (h *Handlers) RenameTag(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Usage count carries over to the new name unchanged.
-	w.Header().Set("HX-Trigger", `{"showToast":"Tag renamed"}`)
+	notifyChanged(w, "Tag renamed")
 	h.render(w, r, "tag_row.html", buildTagRow(newName, usageMap[oldName], ""))
 }
 
@@ -84,7 +84,9 @@ func (h *Handlers) DeleteTag(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	w.Header().Set("HX-Trigger", `{"showToast":"Tag deleted"}`)
+	notifyChanged(w, "Tag deleted")
+	// 200 with an empty body, not 204: the row is removed by hx-swap="delete",
+	// and htmx skips swapping entirely on a 204.
 	w.WriteHeader(http.StatusOK)
 }
 

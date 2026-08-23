@@ -1,7 +1,3 @@
-{{define "subscription_row.html"}}
-  {{template "subscription_row_content" .}}
-{{end}}
-
 {{define "subscription_row_content"}}
 <tr id="sub-{{.ID}}" class="{{if not (isActive .Status)}}row-cancelled{{end}}">
   <td>
@@ -38,29 +34,29 @@
               hx-swap="innerHTML">
         Edit
       </button>
+      {{/* Post only the field that changes. Round-tripping the whole record
+           through hx-vals broke on any name with a quote or any multi-line
+           note, because the JSON was assembled inside an HTML attribute. */}}
       {{if isActive .Status}}
       <button class="outline secondary" style="padding:0.2rem 0.5rem; font-size:0.8rem;"
-              hx-put="/subscriptions/{{.ID}}"
-              hx-vals='{"name":"{{.Name}}","description":"{{.Description}}","cost":"{{printf "%.2f" .Cost}}","currency":"{{.Currency}}","cycle":"{{.Cycle}}","tags":"{{tagsField .Tags}}","notes":"{{.Notes}}","start_date":"{{dateInput .StartDate}}","status":"cancelled"}'
-              hx-target="#sub-{{.ID}}"
-              hx-swap="outerHTML"
+              hx-post="/subscriptions/{{.ID}}/status"
+              hx-vals='{"status":"cancelled"}'
+              hx-swap="none"
               hx-confirm="Cancel this subscription?">
         Cancel
       </button>
       {{else}}
       <button class="outline" style="padding:0.2rem 0.5rem; font-size:0.8rem;"
-              hx-put="/subscriptions/{{.ID}}"
-              hx-vals='{"name":"{{.Name}}","description":"{{.Description}}","cost":"{{printf "%.2f" .Cost}}","currency":"{{.Currency}}","cycle":"{{.Cycle}}","tags":"{{tagsField .Tags}}","notes":"{{.Notes}}","start_date":"{{dateInput .StartDate}}","status":"active"}'
-              hx-target="#sub-{{.ID}}"
-              hx-swap="outerHTML">
+              hx-post="/subscriptions/{{.ID}}/status"
+              hx-vals='{"status":"active"}'
+              hx-swap="none">
         Reactivate
       </button>
       {{end}}
       <button class="outline contrast" style="padding:0.2rem 0.5rem; font-size:0.8rem;"
               hx-delete="/subscriptions/{{.ID}}"
-              hx-target="#sub-{{.ID}}"
-              hx-swap="delete"
-              hx-confirm="Delete '{{.Name}}'? This cannot be undone.">
+              hx-swap="none"
+              hx-confirm="Delete &ldquo;{{.Name}}&rdquo;? This cannot be undone.">
         Del
       </button>
     </div>
