@@ -1,6 +1,6 @@
 module github.com/craigr/subscriptiontracker
 
-go 1.25.0
+go 1.27.3
 
 require (
 	github.com/richardlehane/mscfb v1.0.6 // indirect
